@@ -1,0 +1,85 @@
+.viewport {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 300;
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  min-width: 280px;
+  max-width: 380px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  animation: scaleIn 0.18s ease;
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.success .icon {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.error .icon {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.info .icon {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.message {
+  flex: 1;
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  color: var(--text-soft);
+  transition: background 0.15s ease;
+}
+.close:hover {
+  background: var(--bg-card-hover);
+  color: var(--text);
+}
+
+@media (max-width: 600px) {
+  .viewport {
+    left: 12px;
+    right: 12px;
+    top: 12px;
+  }
+  .toast {
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
+  }
+}
