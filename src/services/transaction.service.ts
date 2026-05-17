@@ -13,7 +13,13 @@ import {
 import { auth, db } from './firebase';
 import type { Transaction, TransactionInput } from '../types';
 
-const path = () => collection(db, 'users', auth.currentUser!.uid, 'transactions');
+function requireUid(): string {
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error('[transactionService] User not authenticated');
+  return uid;
+}
+
+const path = () => collection(db, 'users', requireUid(), 'transactions');
 
 function toTimestamp(value: Date | Timestamp): Timestamp {
   if (value instanceof Timestamp) return value;
@@ -41,8 +47,8 @@ export const transactionService = {
   },
 
   async update(id: string, data: Partial<Omit<TransactionInput, 'date'>> & { date?: Date | Timestamp }) {
-    const payload: Record<string, unknown> = { ...data };
-    if (data.date) payload.date = toTimestamp(data.date);
+    const { date, ...rest } = data;
+    const payload = date ? { ...rest, date: toTimestamp(date) } : rest;
     return updateDoc(doc(path(), id), payload);
   },
 

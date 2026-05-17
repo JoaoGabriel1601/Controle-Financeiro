@@ -36,7 +36,10 @@ export function exportTransactionsCSV({ transactions, categories, accounts, star
   const link = document.createElement('a');
   link.href = url;
   link.download = `extrato-${format(start, 'yyyy-MM-dd')}-a-${format(end, 'yyyy-MM-dd')}.csv`;
+  link.style.display = 'none';
+  document.body.appendChild(link);
   link.click();
+  document.body.removeChild(link);
   URL.revokeObjectURL(url);
 }
 

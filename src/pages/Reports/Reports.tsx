@@ -32,7 +32,7 @@ export function ReportsPage() {
   const totalIncome = filtered.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const totalExpense = filtered.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
 
-  const monthly = useMemo(() => summarizeByMonth(filtered, 6), [filtered]);
+  const monthly = useMemo(() => summarizeByMonth(filtered, 6, endDate), [filtered, endDate]);
   const expenseBreakdown = useMemo(() => breakdownByCategory(filtered, categories, 'expense'), [filtered, categories]);
 
   const handleCsv = () =>

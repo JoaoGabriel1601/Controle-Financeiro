@@ -10,7 +10,13 @@ import {
 import { auth, db } from './firebase';
 import type { Budget, BudgetInput } from '../types';
 
-const path = () => collection(db, 'users', auth.currentUser!.uid, 'budgets');
+function requireUid(): string {
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error('[budgetService] User not authenticated');
+  return uid;
+}
+
+const path = () => collection(db, 'users', requireUid(), 'budgets');
 
 export const budgetService = {
   subscribe(callback: (items: Budget[]) => void): () => void {

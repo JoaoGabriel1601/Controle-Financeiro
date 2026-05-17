@@ -47,7 +47,7 @@ function ToastEntry({ item }: { item: ToastItem }) {
   }, [item.id, dismiss]);
 
   return (
-    <div className={`${styles.toast} ${styles[item.tone]}`} role="status">
+    <div className={`${styles.toast} ${styles[item.tone]}`} role={item.tone === 'error' ? 'alert' : 'status'}>
       <span className={styles.icon}>{ICONS[item.tone]}</span>
       <span className={styles.message}>{item.message}</span>
       <button className={styles.close} onClick={() => dismiss(item.id)} aria-label="Fechar">

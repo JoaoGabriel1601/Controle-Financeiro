@@ -162,7 +162,7 @@ export function CategoriesPage() {
           </>
         }
       >
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <form onSubmit={handleSubmit} className={styles.formStack}>
           <Input
             label="Nome"
             value={form.name}

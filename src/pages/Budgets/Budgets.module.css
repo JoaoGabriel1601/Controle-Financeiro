@@ -162,3 +162,15 @@
   align-items: center;
   gap: 8px;
 }
+
+.formStack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}

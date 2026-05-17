@@ -10,6 +10,7 @@ import { toast } from '../../components/ui/Toast';
 import { useDataStore } from '../../stores/dataStore';
 import { accountService } from '../../services/account.service';
 import { formatCurrency } from '../../utils/format';
+import { computeAccountBalance, computeTotalBalance } from '../../utils/stats';
 import type { Account, AccountInput, AccountType } from '../../types';
 import styles from './Accounts.module.css';
 
@@ -44,25 +45,15 @@ export function AccountsPage() {
   const [deleting, setDeleting] = useState<Account | null>(null);
   const [removing, setRemoving] = useState(false);
 
-  const totalBalance = useMemo(() => {
-    return accounts.reduce((sum, a) => {
-      const txs = transactions.filter((t) => t.accountId === a.id);
-      const movement = txs.reduce(
-        (acc, t) => acc + (t.type === 'income' ? t.amount : t.type === 'expense' ? -t.amount : 0),
-        0,
-      );
-      return sum + a.balance + movement;
-    }, 0);
-  }, [accounts, transactions]);
+  const totalBalance = useMemo(
+    () => computeTotalBalance(accounts, transactions),
+    [accounts, transactions],
+  );
 
-  const computedBalance = (account: Account) => {
-    const txs = transactions.filter((t) => t.accountId === account.id);
-    const movement = txs.reduce(
-      (acc, t) => acc + (t.type === 'income' ? t.amount : t.type === 'expense' ? -t.amount : 0),
-      0,
-    );
-    return account.balance + movement;
-  };
+  const balanceMap = useMemo(
+    () => new Map(accounts.map((a) => [a.id, computeAccountBalance(a, transactions)])),
+    [accounts, transactions],
+  );
 
   const openNew = () => {
     setEditing(null);
@@ -167,7 +158,7 @@ export function AccountsPage() {
               </div>
               <div className={styles.cardName}>{account.name}</div>
               <div className={styles.cardType}>{TYPE_LABELS[account.type]}</div>
-              <div className={styles.cardBalance}>{formatCurrency(computedBalance(account), account.currency)}</div>
+              <div className={styles.cardBalance}>{formatCurrency(balanceMap.get(account.id) ?? account.balance, account.currency)}</div>
             </div>
           ))}
         </div>
@@ -188,7 +179,7 @@ export function AccountsPage() {
           </>
         }
       >
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <form onSubmit={handleSubmit} className={styles.formStack}>
           <Input
             label="Nome"
             placeholder="Ex.: Nubank"
@@ -201,10 +192,9 @@ export function AccountsPage() {
             value={form.type}
             onChange={(e) => setForm({ ...form, type: e.target.value as AccountType })}
           >
-            <option value="checking">Conta corrente</option>
-            <option value="savings">Poupança</option>
-            <option value="credit">Cartão de crédito</option>
-            <option value="investment">Investimento</option>
+            {(Object.entries(TYPE_LABELS) as [AccountType, string][]).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
           </Select>
           <Input
             type="number"

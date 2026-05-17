@@ -13,7 +13,13 @@ import {
 import { auth, db } from './firebase';
 import type { Category, CategoryInput } from '../types';
 
-const path = () => collection(db, 'users', auth.currentUser!.uid, 'categories');
+function requireUid(): string {
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error('[categoryService] User not authenticated');
+  return uid;
+}
+
+const path = () => collection(db, 'users', requireUid(), 'categories');
 
 const DEFAULTS: CategoryInput[] = [
   { name: 'Alimentação', icon: '🍔', color: '#FF6B6B', type: 'expense' },

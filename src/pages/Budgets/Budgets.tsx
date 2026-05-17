@@ -14,13 +14,20 @@ import { formatCurrency, toJsDate } from '../../utils/format';
 import type { Budget, BudgetInput } from '../../types';
 import styles from './Budgets.module.css';
 
-const now = new Date();
+const MONTHS = [
+  'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+  'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro',
+];
+
+const currentDate = new Date();
+const CURRENT_MONTH = currentDate.getMonth() + 1;
+const CURRENT_YEAR = currentDate.getFullYear();
 
 const emptyForm = (categoryId: string): BudgetInput => ({
   categoryId,
   limitAmount: 0,
-  month: now.getMonth() + 1,
-  year: now.getFullYear(),
+  month: CURRENT_MONTH,
+  year: CURRENT_YEAR,
 });
 
 export function BudgetsPage() {
@@ -34,7 +41,7 @@ export function BudgetsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState<Budget | null>(null);
   const [removing, setRemoving] = useState(false);
-  const [period, setPeriod] = useState({ month: now.getMonth() + 1, year: now.getFullYear() });
+  const [period, setPeriod] = useState({ month: CURRENT_MONTH, year: CURRENT_YEAR });
 
   const expenseCategories = useMemo(() => categories.filter((c) => c.type === 'expense'), [categories]);
 
@@ -43,15 +50,18 @@ export function BudgetsPage() {
     [budgets, period],
   );
 
-  const consumed = (categoryId: string) => {
-    return transactions
-      .filter((t) => {
-        if (t.type !== 'expense' || t.categoryId !== categoryId) return false;
-        const d = toJsDate(t.date);
-        return d.getMonth() + 1 === period.month && d.getFullYear() === period.year;
-      })
-      .reduce((sum, t) => sum + t.amount, 0);
-  };
+  const consumedMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const t of transactions) {
+      if (t.type !== 'expense') continue;
+      const d = toJsDate(t.date);
+      if (d.getMonth() + 1 !== period.month || d.getFullYear() !== period.year) continue;
+      map.set(t.categoryId, (map.get(t.categoryId) ?? 0) + t.amount);
+    }
+    return map;
+  }, [transactions, period]);
+
+  const consumed = (categoryId: string) => consumedMap.get(categoryId) ?? 0;
 
   const openNew = () => {
     setEditing(null);
@@ -74,6 +84,15 @@ export function BudgetsPage() {
     e.preventDefault();
     if (!form.categoryId) return toast.error('Selecione uma categoria');
     if (form.limitAmount <= 0) return toast.error('Informe um valor maior que zero');
+
+    const isDuplicate = budgets.some(
+      (b) =>
+        b.categoryId === form.categoryId &&
+        b.month === form.month &&
+        b.year === form.year &&
+        b.id !== editing?.id,
+    );
+    if (isDuplicate) return toast.error('Já existe um orçamento para esta categoria neste mês');
 
     setSubmitting(true);
     try {
@@ -110,12 +129,7 @@ export function BudgetsPage() {
     const limit = periodBudgets.reduce((sum, b) => sum + b.limitAmount, 0);
     const used = periodBudgets.reduce((sum, b) => sum + consumed(b.categoryId), 0);
     return { limit, used };
-  }, [periodBudgets, transactions]);
-
-  const months = [
-    'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
-    'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro',
-  ];
+  }, [periodBudgets, consumedMap]);
 
   return (
     <div className={styles.page}>
@@ -136,7 +150,7 @@ export function BudgetsPage() {
               value={period.month}
               onChange={(e) => setPeriod({ ...period, month: Number(e.target.value) })}
             >
-              {months.map((m, i) => (
+              {MONTHS.map((m, i) => (
                 <option key={i} value={i + 1}>{m}</option>
               ))}
             </Select>
@@ -144,7 +158,7 @@ export function BudgetsPage() {
               value={period.year}
               onChange={(e) => setPeriod({ ...period, year: Number(e.target.value) })}
             >
-              {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((y) => (
+              {[CURRENT_YEAR - 1, CURRENT_YEAR, CURRENT_YEAR + 1].map((y) => (
                 <option key={y} value={y}>{y}</option>
               ))}
             </Select>
@@ -236,7 +250,7 @@ export function BudgetsPage() {
           </>
         }
       >
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <form onSubmit={handleSubmit} className={styles.formStack}>
           <Select
             label="Categoria"
             value={form.categoryId}
@@ -257,13 +271,13 @@ export function BudgetsPage() {
             value={form.limitAmount || ''}
             onChange={(e) => setForm({ ...form, limitAmount: Number(e.target.value) || 0 })}
           />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className={styles.formRow}>
             <Select
               label="Mês"
               value={form.month}
               onChange={(e) => setForm({ ...form, month: Number(e.target.value) })}
             >
-              {months.map((m, i) => (
+              {MONTHS.map((m, i) => (
                 <option key={i} value={i + 1}>{m}</option>
               ))}
             </Select>
@@ -272,7 +286,7 @@ export function BudgetsPage() {
               value={form.year}
               onChange={(e) => setForm({ ...form, year: Number(e.target.value) })}
             >
-              {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((y) => (
+              {[CURRENT_YEAR - 1, CURRENT_YEAR, CURRENT_YEAR + 1].map((y) => (
                 <option key={y} value={y}>{y}</option>
               ))}
             </Select>

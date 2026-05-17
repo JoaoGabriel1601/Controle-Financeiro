@@ -12,7 +12,13 @@ import {
 import { auth, db } from './firebase';
 import type { Account, AccountInput } from '../types';
 
-const path = () => collection(db, 'users', auth.currentUser!.uid, 'accounts');
+function requireUid(): string {
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error('[accountService] User not authenticated');
+  return uid;
+}
+
+const path = () => collection(db, 'users', requireUid(), 'accounts');
 
 export const accountService = {
   subscribe(callback: (items: Account[]) => void): () => void {

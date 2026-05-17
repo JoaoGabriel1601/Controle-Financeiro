@@ -14,8 +14,10 @@ export function useDataSync() {
   const setBudgets = useDataStore((s) => s.setBudgets);
   const reset = useDataStore((s) => s.reset);
 
+  const uid = user?.uid ?? null;
+
   useEffect(() => {
-    if (!user) {
+    if (!uid) {
       reset();
       return;
     }
@@ -35,5 +37,6 @@ export function useDataSync() {
       unsubTransactions();
       unsubBudgets();
     };
-  }, [user, setAccounts, setCategories, setTransactions, setBudgets, reset]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid]);
 }

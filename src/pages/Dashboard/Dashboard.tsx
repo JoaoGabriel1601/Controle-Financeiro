@@ -18,6 +18,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { formatCurrency } from '../../utils/format';
 import {
   breakdownByCategory,
+  computeTotalBalance,
   rollingAverage,
   summarizeByMonth,
   totalForMonth,
@@ -27,39 +28,36 @@ import { CategoryPieChart } from '../../components/charts/CategoryPieChart';
 import { MonthlyBarChart } from '../../components/charts/MonthlyBarChart';
 import styles from './Dashboard.module.css';
 
-type Window = 3 | 6 | 12;
+type MonthWindow = 3 | 6 | 12;
 
 export function Dashboard() {
   const user = useAuthStore((s) => s.user);
   const transactions = useDataStore((s) => s.transactions);
   const categories = useDataStore((s) => s.categories);
   const accounts = useDataStore((s) => s.accounts);
-  const [window, setWindow] = useState<Window>(6);
+  const [monthsBack, setMonthsBack] = useState<MonthWindow>(6);
 
   const monthIncome = useMemo(() => totalForMonth(transactions, 'income'), [transactions]);
   const monthExpense = useMemo(() => totalForMonth(transactions, 'expense'), [transactions]);
   const monthBalance = monthIncome - monthExpense;
 
-  const totalBalance = useMemo(() => {
-    return accounts.reduce((sum, a) => {
-      const txs = transactions.filter((t) => t.accountId === a.id);
-      const movement = txs.reduce(
-        (acc, t) => acc + (t.type === 'income' ? t.amount : t.type === 'expense' ? -t.amount : 0),
-        0,
-      );
-      return sum + a.balance + movement;
-    }, 0);
-  }, [accounts, transactions]);
+  const totalBalance = useMemo(
+    () => computeTotalBalance(accounts, transactions),
+    [accounts, transactions],
+  );
 
-  const monthlySummary = useMemo(() => summarizeByMonth(transactions, window), [transactions, window]);
+  const monthlySummary = useMemo(() => summarizeByMonth(transactions, monthsBack), [transactions, monthsBack]);
   const expenseBreakdown = useMemo(
     () => breakdownByCategory(transactions, categories, 'expense').slice(0, 8),
     [transactions, categories],
   );
-  const avgExpense = useMemo(() => rollingAverage(transactions, window, 'expense'), [transactions, window]);
-  const avgIncome = useMemo(() => rollingAverage(transactions, window, 'income'), [transactions, window]);
+  const avgExpense = useMemo(() => rollingAverage(transactions, monthsBack, 'expense'), [transactions, monthsBack]);
+  const avgIncome = useMemo(() => rollingAverage(transactions, monthsBack, 'income'), [transactions, monthsBack]);
 
   const recent = useMemo(() => transactions.slice(0, 5), [transactions]);
+
+  const categoryMap = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
+  const accountMap = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -129,14 +127,14 @@ export function Dashboard() {
 
       <Card
         title="Receita vs Despesa"
-        subtitle={`Últimos ${window} meses`}
+        subtitle={`Últimos ${monthsBack} meses`}
         action={
           <div className={styles.windowSwitch}>
             {[3, 6, 12].map((w) => (
               <button
                 key={w}
-                onClick={() => setWindow(w as Window)}
-                className={`${styles.windowBtn} ${window === w ? styles.windowBtnActive : ''}`}
+                onClick={() => setMonthsBack(w as MonthWindow)}
+                className={`${styles.windowBtn} ${monthsBack === w ? styles.windowBtnActive : ''}`}
               >
                 {w}M
               </button>
@@ -202,8 +200,8 @@ export function Dashboard() {
         ) : (
           <div className={styles.recent}>
             {recent.map((tx) => {
-              const cat = categories.find((c) => c.id === tx.categoryId);
-              const acc = accounts.find((a) => a.id === tx.accountId);
+              const cat = categoryMap.get(tx.categoryId);
+              const acc = accountMap.get(tx.accountId);
               const isIncome = tx.type === 'income';
               return (
                 <div key={tx.id} className={styles.recentItem}>

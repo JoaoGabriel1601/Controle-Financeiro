@@ -1,5 +1,5 @@
 import { addMonths, format, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
-import type { Transaction, Category } from '../types';
+import type { Transaction, Category, Account } from '../types';
 import { toJsDate } from './format';
 
 export interface MonthlySummary {
@@ -16,6 +16,17 @@ export interface CategoryBreakdown {
   color: string;
   total: number;
   count: number;
+}
+
+export function computeAccountBalance(account: Account, transactions: Transaction[]): number {
+  const movement = transactions
+    .filter((t) => t.accountId === account.id)
+    .reduce((acc, t) => acc + (t.type === 'income' ? t.amount : t.type === 'expense' ? -t.amount : 0), 0);
+  return account.balance + movement;
+}
+
+export function computeTotalBalance(accounts: Account[], transactions: Transaction[]): number {
+  return accounts.reduce((sum, a) => sum + computeAccountBalance(a, transactions), 0);
 }
 
 export function summarizeByMonth(

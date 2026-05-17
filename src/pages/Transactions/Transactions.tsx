@@ -126,6 +126,9 @@ export function TransactionsPage() {
     }
   };
 
+  const categoryMap = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
+  const accountMap = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
+
   const categoriesForType = useMemo(
     () => categories.filter((c) => c.type === (form.type === 'transfer' ? 'expense' : form.type)),
     [categories, form.type],
@@ -145,8 +148,8 @@ export function TransactionsPage() {
     });
   }, [filtered]);
 
-  const findCategory = (id: string) => categories.find((c) => c.id === id);
-  const findAccount = (id: string) => accounts.find((a) => a.id === id);
+  const findCategory = (id: string) => categoryMap.get(id);
+  const findAccount = (id: string) => accountMap.get(id);
 
   return (
     <div className={styles.page}>
@@ -272,7 +275,7 @@ export function TransactionsPage() {
           </>
         }
       >
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <form onSubmit={handleSubmit} className={styles.formStack}>
           <div className={styles.typeSwitch}>
             {(['expense', 'income'] as const).map((type) => (
               <button
@@ -303,7 +306,7 @@ export function TransactionsPage() {
             autoFocus
           />
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className={styles.formRow}>
             <Input
               label="Valor"
               type="number"
