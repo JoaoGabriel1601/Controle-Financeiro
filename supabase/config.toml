@@ -1,0 +1,3 @@
+# Configuração mínima para o Supabase CLI.
+# O schema "de verdade" vive no projeto remoto; veja supabase/README.md.
+project_id = "xoeoasoovqigdiverxll"
