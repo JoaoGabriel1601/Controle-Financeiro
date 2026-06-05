@@ -4,7 +4,7 @@ import { Button } from '../../components/ui/Button';
 import { useAuthStore } from '../../stores/authStore';
 import { useThemeStore } from '../../stores/themeStore';
 import { authService } from '../../services/auth.service';
-import { toast } from '../../components/ui/Toast';
+import { toast } from '../../components/ui/toastStore';
 import styles from './Settings.module.css';
 
 export function SettingsPage() {

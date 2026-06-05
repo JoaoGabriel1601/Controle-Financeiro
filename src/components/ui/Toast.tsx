@@ -1,36 +1,7 @@
-import { create } from 'zustand';
 import { useEffect } from 'react';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
+import { useToastStore, type ToastItem, type ToastTone } from './toastStore';
 import styles from './Toast.module.css';
-
-type ToastTone = 'success' | 'error' | 'info';
-
-interface ToastItem {
-  id: string;
-  message: string;
-  tone: ToastTone;
-}
-
-interface ToastStore {
-  items: ToastItem[];
-  push: (message: string, tone?: ToastTone) => void;
-  dismiss: (id: string) => void;
-}
-
-const useToastStore = create<ToastStore>((set) => ({
-  items: [],
-  push: (message, tone = 'info') => {
-    const id = Math.random().toString(36).slice(2, 10);
-    set((state) => ({ items: [...state.items, { id, message, tone }] }));
-  },
-  dismiss: (id) => set((state) => ({ items: state.items.filter((i) => i.id !== id) })),
-}));
-
-export const toast = {
-  success: (msg: string) => useToastStore.getState().push(msg, 'success'),
-  error: (msg: string) => useToastStore.getState().push(msg, 'error'),
-  info: (msg: string) => useToastStore.getState().push(msg, 'info'),
-};
 
 const ICONS: Record<ToastTone, React.ReactNode> = {
   success: <CheckCircle2 size={18} />,

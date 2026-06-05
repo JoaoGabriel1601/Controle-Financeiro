@@ -27,7 +27,7 @@ export function MonthlyBarChart({ data }: Props) {
             fontSize={12}
             tickLine={false}
             axisLine={false}
-            tickFormatter={(v) => `R$ ${Math.round(v / 1000)}k`}
+            tickFormatter={(v) => `R$ ${Math.round(v / 100000)}k`}
           />
           <Tooltip
             cursor={{ fill: 'var(--primary-soft)' }}

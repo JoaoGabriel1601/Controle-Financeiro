@@ -121,6 +121,9 @@
 .expense {
   color: var(--danger);
 }
+.transfer {
+  color: var(--primary);
+}
 
 .itemActions {
   display: flex;
@@ -143,7 +146,7 @@
 
 .typeSwitch {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 8px;
 }
 
@@ -169,6 +172,10 @@
 .typeBtnActive.income {
   background: var(--success-soft);
   color: var(--success);
+}
+.typeBtnActive.transfer {
+  background: var(--primary-soft);
+  color: var(--primary);
 }
 
 @media (max-width: 600px) {

@@ -1,73 +1,99 @@
-# React + TypeScript + Vite
+# Controle Financeiro
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Aplicação web de controle financeiro pessoal: cadastre contas, categorias e transações, defina
+orçamentos mensais por categoria e acompanhe receitas, despesas e saldos em um dashboard com
+gráficos. Os dados são sincronizados em tempo real por usuário no Supabase.
 
-Currently, two official plugins are available:
+## Funcionalidades
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Autenticação** por e-mail/senha e Google (Supabase Auth)
+- **Contas** (corrente, poupança, crédito, investimento) com saldo calculado a partir das transações
+- **Categorias** de receita e despesa (com um conjunto padrão criado no primeiro acesso)
+- **Transações** com busca e filtros por tipo, categoria e conta
+- **Orçamentos** mensais por categoria, com acompanhamento de consumo
+- **Relatórios** por período e exportação em **CSV** e **PDF**
+- **Tema** claro/escuro
+- Sincronização em tempo real (Supabase Realtime / `postgres_changes`)
 
-## React Compiler
+## Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+React 19 · TypeScript · Vite · Zustand · React Router · Supabase (Auth + Postgres + Realtime) ·
+Recharts · date-fns · jsPDF
 
-## Expanding the ESLint configuration
+## Pré-requisitos
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- **Node.js 20.19+ ou 22.12+** (veja `.nvmrc` — `nvm use`)
+- Um projeto no [Supabase](https://supabase.com) com **Authentication** e o schema aplicado
+  (tabelas `accounts`, `categories`, `transactions`, `budgets` com RLS)
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Configuração
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+cp .env.example .env   # preencha com a URL e a chave publishable do seu projeto Supabase
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Variáveis necessárias no `.env` (prefixo `VITE_` é obrigatório para o Vite expor ao cliente):
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+```
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=sb_publishable_xxxxxxxxxxxxxxxxxxxx
+```
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+> A chave publishable (`sb_publishable_...`) é pública por design — o que protege os dados são
+> as políticas de **Row Level Security** (RLS), que restringem cada linha ao seu dono
+> (`auth.uid() = user_id`).
+
+No painel do Supabase, em **Authentication → Providers**, habilite **Email** e **Google**.
+Para o Google, adicione a URL de callback `https://<project>.supabase.co/auth/v1/callback`
+ao cliente OAuth no Google Cloud Console (dá para reaproveitar um cliente existente).
+
+## Scripts
+
+| Comando             | Descrição                              |
+| ------------------- | -------------------------------------- |
+| `npm run dev`       | Servidor de desenvolvimento (HMR)      |
+| `npm run build`     | Type-check + build de produção (`dist`)|
+| `npm run typecheck` | Apenas verificação de tipos            |
+| `npm run lint`      | ESLint                                 |
+| `npm run preview`   | Pré-visualiza o build de produção      |
+
+## Valores monetários (centavos)
+
+Todos os valores em dinheiro (`amount`, `balance`, `limitAmount`) são armazenados como
+**centavos inteiros** (ex.: R$ 10,50 → `1050`), tanto no app quanto nas colunas `bigint` do
+Postgres. Isso evita imprecisão de ponto flutuante. A conversão para/de reais acontece só nas
+bordas (formulários e exibição) — veja [`src/utils/money.ts`](src/utils/money.ts).
+`formatCurrency()` recebe centavos.
+
+## Banco de dados (Supabase)
+
+O schema vive no projeto Supabase: tabelas `accounts`, `categories`, `transactions` e `budgets`,
+todas com RLS por dono e adicionadas à publication `supabase_realtime`. As 11 categorias padrão
+são criadas automaticamente no signup por uma trigger (`handle_new_user` em `auth.users`).
+
+## Deploy
+
+O front é um SPA estático (`dist`) — publique em qualquer host estático gratuito
+(Cloudflare Pages, Vercel ou Netlify):
+
+```bash
+npm run build   # gera dist/
+```
+
+Configure as variáveis `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` no painel do host e
+adicione a URL de produção em **Authentication → URL Configuration** no Supabase (Site URL e
+Redirect URLs) para o login com Google funcionar.
+
+## Estrutura
+
+```
+src/
+  components/   # UI reutilizável (ui/) e layout (layout/) e gráficos (charts/)
+  hooks/        # useDataSync — assinaturas em tempo real (Supabase Realtime)
+  pages/        # uma pasta por rota (Dashboard, Transações, Contas, ...)
+  services/     # acesso ao Supabase (client + auth + uma camada por tabela)
+  stores/       # estado global com Zustand (auth, dados, tema)
+  types/        # tipos do domínio
+  utils/        # formatação, estatísticas e exportação CSV/PDF
 ```

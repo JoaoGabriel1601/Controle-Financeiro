@@ -2,15 +2,15 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles/theme.css';
 import { App } from './App';
-import { isFirebaseConfigured } from './services/firebase';
+import { isSupabaseConfigured } from './services/supabase';
 
-if (!isFirebaseConfigured) {
+if (!isSupabaseConfigured) {
   document.body.innerHTML =
     '<div style="padding:2rem;font-family:sans-serif;color:#ef4444">' +
-    '<strong>Configuração do Firebase ausente.</strong><br>' +
-    'Verifique as variáveis de ambiente VITE_FIREBASE_* no arquivo .env.' +
+    '<strong>Configuração do Supabase ausente.</strong><br>' +
+    'Verifique as variáveis VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no arquivo .env.' +
     '</div>';
-  throw new Error('Firebase not configured — missing VITE_FIREBASE_* env vars');
+  throw new Error('Supabase not configured — missing VITE_SUPABASE_* env vars');
 }
 
 createRoot(document.getElementById('root')!).render(

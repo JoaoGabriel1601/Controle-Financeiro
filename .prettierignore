@@ -3,6 +3,5 @@ dist
 build
 android
 ios
-.firebase
 *.min.js
 package-lock.json

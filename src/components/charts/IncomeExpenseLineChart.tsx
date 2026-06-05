@@ -27,7 +27,7 @@ export function IncomeExpenseLineChart({ data }: Props) {
             fontSize={12}
             tickLine={false}
             axisLine={false}
-            tickFormatter={(v) => `R$ ${Math.round(v / 1000)}k`}
+            tickFormatter={(v) => `R$ ${Math.round(v / 100000)}k`}
           />
           <Tooltip
             cursor={{ stroke: 'var(--primary)', strokeOpacity: 0.2 }}

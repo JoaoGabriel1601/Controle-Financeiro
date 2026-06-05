@@ -1,7 +1,7 @@
-import jsPDF from 'jspdf';
 import { format } from 'date-fns';
 import type { Transaction, Category, Account } from '../types';
 import { formatCurrency, formatDate } from './format';
+import { centsToReais } from './money';
 
 interface ExportArgs {
   transactions: Transaction[];
@@ -27,7 +27,7 @@ export function exportTransactionsCSV({ transactions, categories, accounts, star
     tx.type === 'income' ? 'Receita' : tx.type === 'expense' ? 'Despesa' : 'Transferência',
     findCategoryName(tx.categoryId, categories),
     findAccountName(tx.accountId, accounts),
-    tx.amount.toFixed(2).replace('.', ','),
+    centsToReais(tx.amount).toFixed(2).replace('.', ','),
   ]);
 
   const csv = [header.join(';'), ...rows.map((r) => r.join(';'))].join('\n');
@@ -43,7 +43,8 @@ export function exportTransactionsCSV({ transactions, categories, accounts, star
   URL.revokeObjectURL(url);
 }
 
-export function exportTransactionsPDF({ transactions, categories, start, end }: ExportArgs) {
+export async function exportTransactionsPDF({ transactions, categories, start, end }: ExportArgs) {
+  const { default: jsPDF } = await import('jspdf');
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   const margin = 40;
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -96,13 +97,15 @@ export function exportTransactionsPDF({ transactions, categories, start, end }: 
       doc.addPage();
       y = margin;
     }
-    const cat = findCategoryName(tx.categoryId, categories);
-    const sign = tx.type === 'income' ? '+ ' : '- ';
+    const isTransfer = tx.type === 'transfer';
+    const cat = isTransfer ? 'Transferência' : findCategoryName(tx.categoryId, categories);
+    const sign = isTransfer ? '' : tx.type === 'income' ? '+ ' : '- ';
     doc.setTextColor(60);
     doc.text(formatDate(tx.date), margin, y);
     doc.text(tx.description.slice(0, 32), margin + 70, y);
     doc.text(cat.slice(0, 18), margin + 280, y);
-    doc.setTextColor(tx.type === 'income' ? 40 : 200, tx.type === 'income' ? 140 : 60, 60);
+    if (isTransfer) doc.setTextColor(120);
+    else doc.setTextColor(tx.type === 'income' ? 40 : 200, tx.type === 'income' ? 140 : 60, 60);
     doc.text(`${sign}${formatCurrency(tx.amount)}`, pageWidth - margin, y, { align: 'right' });
     y += 16;
   }

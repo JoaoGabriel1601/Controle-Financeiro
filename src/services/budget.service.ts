@@ -1,41 +1,60 @@
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  query,
-  updateDoc,
-} from 'firebase/firestore';
-import { auth, db } from './firebase';
+import { supabase } from './supabase';
 import type { Budget, BudgetInput } from '../types';
 
-function requireUid(): string {
-  const uid = auth.currentUser?.uid;
-  if (!uid) throw new Error('[budgetService] User not authenticated');
-  return uid;
+const TABLE = 'budgets';
+const SELECT = 'id, categoryId:category_id, limitAmount:limit_amount, month, year';
+
+/** Mapeia o input (camelCase) para a linha do Postgres (snake_case). */
+function toRow(data: Partial<BudgetInput>): Record<string, unknown> {
+  const row: Record<string, unknown> = {};
+  if (data.categoryId !== undefined) row.category_id = data.categoryId;
+  if (data.limitAmount !== undefined) row.limit_amount = data.limitAmount;
+  if (data.month !== undefined) row.month = data.month;
+  if (data.year !== undefined) row.year = data.year;
+  return row;
 }
 
-const path = () => collection(db, 'users', requireUid(), 'budgets');
-
 export const budgetService = {
-  subscribe(callback: (items: Budget[]) => void): () => void {
-    const q = query(path());
-    return onSnapshot(q, (snap) => {
-      const items = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Budget, 'id'>) }));
-      callback(items);
-    });
+  subscribe(
+    callback: (items: Budget[]) => void,
+    onError?: (error: Error) => void,
+  ): () => void {
+    let active = true;
+    const load = async () => {
+      const { data, error } = await supabase.from(TABLE).select(SELECT);
+      if (!active) return;
+      if (error) {
+        console.error('[budgetService.subscribe]', error);
+        onError?.(new Error(error.message));
+        return;
+      }
+      callback((data ?? []) as Budget[]);
+    };
+
+    void load();
+    const channel = supabase
+      .channel('rt:budgets')
+      .on('postgres_changes', { event: '*', schema: 'public', table: TABLE }, () => void load())
+      .subscribe();
+
+    return () => {
+      active = false;
+      void supabase.removeChannel(channel);
+    };
   },
 
   async create(data: BudgetInput) {
-    return addDoc(path(), data);
+    const { error } = await supabase.from(TABLE).insert(toRow(data));
+    if (error) throw error;
   },
 
   async update(id: string, data: Partial<BudgetInput>) {
-    return updateDoc(doc(path(), id), data);
+    const { error } = await supabase.from(TABLE).update(toRow(data)).eq('id', id);
+    if (error) throw error;
   },
 
   async remove(id: string) {
-    return deleteDoc(doc(path(), id));
+    const { error } = await supabase.from(TABLE).delete().eq('id', id);
+    if (error) throw error;
   },
 };

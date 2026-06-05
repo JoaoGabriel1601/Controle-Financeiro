@@ -3,7 +3,7 @@ import { Menu, Moon, Sun, LogOut, User } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { useThemeStore } from '../../stores/themeStore';
 import { authService } from '../../services/auth.service';
-import { toast } from '../ui/Toast';
+import { toast } from '../ui/toastStore';
 import styles from './Header.module.css';
 
 interface HeaderProps {

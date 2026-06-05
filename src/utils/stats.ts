@@ -1,6 +1,7 @@
 import { addMonths, format, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import type { Transaction, Category, Account } from '../types';
 import { toJsDate } from './format';
+import { roundCents } from './money';
 
 export interface MonthlySummary {
   month: string;
@@ -19,9 +20,16 @@ export interface CategoryBreakdown {
 }
 
 export function computeAccountBalance(account: Account, transactions: Transaction[]): number {
-  const movement = transactions
-    .filter((t) => t.accountId === account.id)
-    .reduce((acc, t) => acc + (t.type === 'income' ? t.amount : t.type === 'expense' ? -t.amount : 0), 0);
+  const movement = transactions.reduce((acc, t) => {
+    if (t.type === 'transfer') {
+      // Sai da conta de origem, entra na conta de destino.
+      if (t.accountId === account.id) return acc - t.amount;
+      if (t.toAccountId === account.id) return acc + t.amount;
+      return acc;
+    }
+    if (t.accountId !== account.id) return acc;
+    return acc + (t.type === 'income' ? t.amount : -t.amount);
+  }, 0);
   return account.balance + movement;
 }
 
@@ -106,7 +114,7 @@ export function rollingAverage(
     if (!isWithinInterval(date, { start, end })) continue;
     total += tx.amount;
   }
-  return total / windowMonths;
+  return roundCents(total / windowMonths);
 }
 
 export function totalForMonth(

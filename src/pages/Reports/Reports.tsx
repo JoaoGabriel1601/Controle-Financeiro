@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { toast } from '../../components/ui/toastStore';
 import { useDataStore } from '../../stores/dataStore';
 import { breakdownByCategory, summarizeByMonth } from '../../utils/stats';
 import { dateInputValue, formatCurrency, parseDateInput, toJsDate } from '../../utils/format';
@@ -35,10 +36,20 @@ export function ReportsPage() {
   const monthly = useMemo(() => summarizeByMonth(filtered, 6, endDate), [filtered, endDate]);
   const expenseBreakdown = useMemo(() => breakdownByCategory(filtered, categories, 'expense'), [filtered, categories]);
 
+  const [exportingPdf, setExportingPdf] = useState(false);
+
   const handleCsv = () =>
     exportTransactionsCSV({ transactions: filtered, categories, accounts, start: startDate, end: endDate });
-  const handlePdf = () =>
-    exportTransactionsPDF({ transactions: filtered, categories, accounts, start: startDate, end: endDate });
+  const handlePdf = async () => {
+    setExportingPdf(true);
+    try {
+      await exportTransactionsPDF({ transactions: filtered, categories, accounts, start: startDate, end: endDate });
+    } catch {
+      toast.error('Não foi possível gerar o PDF');
+    } finally {
+      setExportingPdf(false);
+    }
+  };
 
   return (
     <div className={styles.page}>
@@ -67,7 +78,7 @@ export function ReportsPage() {
             <Button variant="secondary" leftIcon={<FileSpreadsheet size={16} />} onClick={handleCsv}>
               Exportar CSV
             </Button>
-            <Button leftIcon={<FileText size={16} />} onClick={handlePdf}>
+            <Button leftIcon={<FileText size={16} />} onClick={handlePdf} loading={exportingPdf}>
               Exportar PDF
             </Button>
           </div>

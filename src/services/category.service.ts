@@ -1,68 +1,53 @@
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  orderBy,
-  query,
-  updateDoc,
-  writeBatch,
-  getDocs,
-} from 'firebase/firestore';
-import { auth, db } from './firebase';
+import { supabase } from './supabase';
 import type { Category, CategoryInput } from '../types';
 
-function requireUid(): string {
-  const uid = auth.currentUser?.uid;
-  if (!uid) throw new Error('[categoryService] User not authenticated');
-  return uid;
-}
-
-const path = () => collection(db, 'users', requireUid(), 'categories');
-
-const DEFAULTS: CategoryInput[] = [
-  { name: 'Alimentação', icon: '🍔', color: '#FF6B6B', type: 'expense' },
-  { name: 'Transporte', icon: '🚗', color: '#4DABF7', type: 'expense' },
-  { name: 'Moradia', icon: '🏠', color: '#FFA94D', type: 'expense' },
-  { name: 'Lazer', icon: '🎮', color: '#9775FA', type: 'expense' },
-  { name: 'Saúde', icon: '💊', color: '#51CF66', type: 'expense' },
-  { name: 'Educação', icon: '📚', color: '#FCC419', type: 'expense' },
-  { name: 'Compras', icon: '🛍️', color: '#E64980', type: 'expense' },
-  { name: 'Outros', icon: '💸', color: '#94a3b8', type: 'expense' },
-  { name: 'Salário', icon: '💼', color: '#37B24D', type: 'income' },
-  { name: 'Freelance', icon: '💻', color: '#1098AD', type: 'income' },
-  { name: 'Investimentos', icon: '📈', color: '#7048E8', type: 'income' },
-];
+const TABLE = 'categories';
+const SELECT = 'id, name, icon, color, type';
 
 export const categoryService = {
-  subscribe(callback: (items: Category[]) => void): () => void {
-    const q = query(path(), orderBy('name'));
-    return onSnapshot(q, (snap) => {
-      const items = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Category, 'id'>) }));
-      callback(items);
-    });
+  subscribe(
+    callback: (items: Category[]) => void,
+    onError?: (error: Error) => void,
+  ): () => void {
+    let active = true;
+    const load = async () => {
+      const { data, error } = await supabase
+        .from(TABLE)
+        .select(SELECT)
+        .order('name', { ascending: true });
+      if (!active) return;
+      if (error) {
+        console.error('[categoryService.subscribe]', error);
+        onError?.(new Error(error.message));
+        return;
+      }
+      callback((data ?? []) as Category[]);
+    };
+
+    void load();
+    const channel = supabase
+      .channel('rt:categories')
+      .on('postgres_changes', { event: '*', schema: 'public', table: TABLE }, () => void load())
+      .subscribe();
+
+    return () => {
+      active = false;
+      void supabase.removeChannel(channel);
+    };
   },
 
   async create(data: CategoryInput) {
-    return addDoc(path(), data);
+    const { error } = await supabase.from(TABLE).insert(data);
+    if (error) throw error;
   },
 
   async update(id: string, data: Partial<CategoryInput>) {
-    return updateDoc(doc(path(), id), data);
+    const { error } = await supabase.from(TABLE).update(data).eq('id', id);
+    if (error) throw error;
   },
 
   async remove(id: string) {
-    return deleteDoc(doc(path(), id));
-  },
-
-  async ensureDefaults() {
-    const existing = await getDocs(path());
-    if (!existing.empty) return;
-    const batch = writeBatch(db);
-    for (const cat of DEFAULTS) {
-      batch.set(doc(path()), cat);
-    }
-    await batch.commit();
+    const { error } = await supabase.from(TABLE).delete().eq('id', id);
+    if (error) throw error;
   },
 };

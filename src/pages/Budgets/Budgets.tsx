@@ -7,10 +7,11 @@ import { Input, Select } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
-import { toast } from '../../components/ui/Toast';
+import { toast } from '../../components/ui/toastStore';
 import { useDataStore } from '../../stores/dataStore';
 import { budgetService } from '../../services/budget.service';
 import { formatCurrency, toJsDate } from '../../utils/format';
+import { centsToReais, reaisToCents } from '../../utils/money';
 import type { Budget, BudgetInput } from '../../types';
 import styles from './Budgets.module.css';
 
@@ -73,7 +74,7 @@ export function BudgetsPage() {
     setEditing(b);
     setForm({
       categoryId: b.categoryId,
-      limitAmount: b.limitAmount,
+      limitAmount: centsToReais(b.limitAmount),
       month: b.month,
       year: b.year,
     });
@@ -96,11 +97,12 @@ export function BudgetsPage() {
 
     setSubmitting(true);
     try {
+      const payload = { ...form, limitAmount: reaisToCents(form.limitAmount) };
       if (editing) {
-        await budgetService.update(editing.id, form);
+        await budgetService.update(editing.id, payload);
         toast.success('Orçamento atualizado');
       } else {
-        await budgetService.create(form);
+        await budgetService.create(payload);
         toast.success('Orçamento criado');
       }
       setModalOpen(false);
@@ -127,7 +129,7 @@ export function BudgetsPage() {
 
   const totals = useMemo(() => {
     const limit = periodBudgets.reduce((sum, b) => sum + b.limitAmount, 0);
-    const used = periodBudgets.reduce((sum, b) => sum + consumed(b.categoryId), 0);
+    const used = periodBudgets.reduce((sum, b) => sum + (consumedMap.get(b.categoryId) ?? 0), 0);
     return { limit, used };
   }, [periodBudgets, consumedMap]);
 

@@ -7,10 +7,11 @@ import { Input, Select } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
-import { toast } from '../../components/ui/Toast';
+import { toast } from '../../components/ui/toastStore';
 import { useDataStore } from '../../stores/dataStore';
 import { transactionService } from '../../services/transaction.service';
 import { dateInputValue, formatCurrency, formatDate, parseDateInput, toJsDate } from '../../utils/format';
+import { centsToReais, reaisToCents } from '../../utils/money';
 import type { Transaction, TransactionType } from '../../types';
 import styles from './Transactions.module.css';
 
@@ -20,15 +21,17 @@ interface FormState {
   description: string;
   categoryId: string;
   accountId: string;
+  toAccountId: string;
   date: string;
 }
 
-const emptyForm = (categoryId: string, accountId: string): FormState => ({
+const emptyForm = (categoryId: string, accountId: string, toAccountId = ''): FormState => ({
   type: 'expense',
   amount: '',
   description: '',
   categoryId,
   accountId,
+  toAccountId,
   date: dateInputValue(new Date()),
 });
 
@@ -62,7 +65,7 @@ export function TransactionsPage() {
 
   const openNew = () => {
     setEditing(null);
-    setForm(emptyForm(categories[0]?.id ?? '', accounts[0]?.id ?? ''));
+    setForm(emptyForm(categories[0]?.id ?? '', accounts[0]?.id ?? '', accounts[1]?.id ?? ''));
     setModalOpen(true);
   };
 
@@ -70,10 +73,11 @@ export function TransactionsPage() {
     setEditing(tx);
     setForm({
       type: tx.type,
-      amount: String(tx.amount),
+      amount: String(centsToReais(tx.amount)),
       description: tx.description,
       categoryId: tx.categoryId,
       accountId: tx.accountId,
+      toAccountId: tx.toAccountId ?? '',
       date: dateInputValue(tx.date),
     });
     setModalOpen(true);
@@ -81,22 +85,31 @@ export function TransactionsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const amount = Number(form.amount);
+    const amount = reaisToCents(Number(form.amount));
+    const isTransfer = form.type === 'transfer';
     if (!amount || amount <= 0) return toast.error('Informe um valor maior que zero');
-    if (!form.categoryId) return toast.error('Selecione uma categoria');
-    if (!form.accountId) return toast.error('Selecione uma conta');
     if (!form.description.trim()) return toast.error('Informe uma descrição');
+    if (isTransfer) {
+      if (!form.accountId) return toast.error('Selecione a conta de origem');
+      if (!form.toAccountId) return toast.error('Selecione a conta de destino');
+      if (form.accountId === form.toAccountId)
+        return toast.error('Origem e destino devem ser contas diferentes');
+    } else {
+      if (!form.categoryId) return toast.error('Selecione uma categoria');
+      if (!form.accountId) return toast.error('Selecione uma conta');
+    }
 
     setSubmitting(true);
     try {
-      const payload = {
+      const base = {
         type: form.type,
         amount,
         description: form.description.trim(),
-        categoryId: form.categoryId,
+        categoryId: isTransfer ? '' : form.categoryId,
         accountId: form.accountId,
         date: parseDateInput(form.date),
       };
+      const payload = isTransfer ? { ...base, toAccountId: form.toAccountId } : base;
       if (editing) {
         await transactionService.update(editing.id, payload);
         toast.success('Transação atualizada');
@@ -224,23 +237,45 @@ export function TransactionsPage() {
                   const cat = findCategory(tx.categoryId);
                   const acc = findAccount(tx.accountId);
                   const isIncome = tx.type === 'income';
+                  const isTransfer = tx.type === 'transfer';
+                  const toAcc = isTransfer ? findAccount(tx.toAccountId ?? '') : undefined;
+                  const amountClass = isTransfer
+                    ? styles.transfer
+                    : isIncome
+                      ? styles.income
+                      : styles.expense;
                   return (
                     <div key={tx.id} className={styles.item}>
                       <span
                         className={styles.itemIcon}
                         style={{ background: cat?.color ?? 'var(--bg-card-hover)' }}
                       >
-                        {cat?.icon ?? (isIncome ? '💰' : '💸')}
+                        {cat?.icon ?? (isTransfer ? '🔄' : isIncome ? '💰' : '💸')}
                       </span>
                       <div className={styles.itemBody}>
                         <strong>{tx.description}</strong>
                         <div className={styles.itemMeta}>
-                          <Badge tone="neutral">{cat?.name ?? 'Sem categoria'}</Badge>
-                          <span>{acc?.name ?? '—'}</span>
+                          {isTransfer ? (
+                            <>
+                              <Badge tone="neutral">Transferência</Badge>
+                              <span>{acc?.name ?? '—'} → {toAcc?.name ?? '—'}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Badge tone="neutral">{cat?.name ?? 'Sem categoria'}</Badge>
+                              <span>{acc?.name ?? '—'}</span>
+                            </>
+                          )}
                         </div>
                       </div>
-                      <div className={`${styles.itemAmount} ${isIncome ? styles.income : styles.expense}`}>
-                        {isIncome ? <ArrowDownLeft size={14} /> : <ArrowUpRight size={14} />}
+                      <div className={`${styles.itemAmount} ${amountClass}`}>
+                        {isTransfer ? (
+                          <ArrowLeftRight size={14} />
+                        ) : isIncome ? (
+                          <ArrowDownLeft size={14} />
+                        ) : (
+                          <ArrowUpRight size={14} />
+                        )}
                         {formatCurrency(tx.amount)}
                       </div>
                       <div className={styles.itemActions}>
@@ -277,25 +312,31 @@ export function TransactionsPage() {
       >
         <form onSubmit={handleSubmit} className={styles.formStack}>
           <div className={styles.typeSwitch}>
-            {(['expense', 'income'] as const).map((type) => (
-              <button
-                key={type}
-                type="button"
-                onClick={() =>
-                  setForm({
-                    ...form,
-                    type,
-                    categoryId:
-                      categories.find((c) => c.type === type)?.id ?? form.categoryId,
-                  })
-                }
-                className={`${styles.typeBtn} ${form.type === type ? styles.typeBtnActive : ''} ${
-                  type === 'income' ? styles.income : styles.expense
-                }`}
-              >
-                {type === 'income' ? 'Receita' : 'Despesa'}
-              </button>
-            ))}
+            {(['expense', 'income', 'transfer'] as const).map((type) => {
+              const toneClass =
+                type === 'income' ? styles.income : type === 'transfer' ? styles.transfer : styles.expense;
+              const label =
+                type === 'income' ? 'Receita' : type === 'transfer' ? 'Transferência' : 'Despesa';
+              return (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() =>
+                    setForm({
+                      ...form,
+                      type,
+                      categoryId:
+                        type === 'transfer'
+                          ? form.categoryId
+                          : categories.find((c) => c.type === type)?.id ?? form.categoryId,
+                    })
+                  }
+                  className={`${styles.typeBtn} ${form.type === type ? styles.typeBtnActive : ''} ${toneClass}`}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
 
           <Input
@@ -323,21 +364,23 @@ export function TransactionsPage() {
             />
           </div>
 
-          <Select
-            label="Categoria"
-            value={form.categoryId}
-            onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
-          >
-            <option value="">Selecione...</option>
-            {categoriesForType.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.icon} {c.name}
-              </option>
-            ))}
-          </Select>
+          {form.type !== 'transfer' && (
+            <Select
+              label="Categoria"
+              value={form.categoryId}
+              onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
+            >
+              <option value="">Selecione...</option>
+              {categoriesForType.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.icon} {c.name}
+                </option>
+              ))}
+            </Select>
+          )}
 
           <Select
-            label="Conta"
+            label={form.type === 'transfer' ? 'Conta de origem' : 'Conta'}
             value={form.accountId}
             onChange={(e) => setForm({ ...form, accountId: e.target.value })}
           >
@@ -348,6 +391,21 @@ export function TransactionsPage() {
               </option>
             ))}
           </Select>
+
+          {form.type === 'transfer' && (
+            <Select
+              label="Conta de destino"
+              value={form.toAccountId}
+              onChange={(e) => setForm({ ...form, toAccountId: e.target.value })}
+            >
+              <option value="">Selecione...</option>
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </Select>
+          )}
         </form>
       </Modal>
 

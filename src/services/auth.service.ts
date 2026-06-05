@@ -1,59 +1,61 @@
-import {
-  signInWithPopup,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-  updateProfile,
-  type User as FirebaseUser,
-} from 'firebase/auth';
-import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
-import { auth, db, googleProvider } from './firebase';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
+import { supabase } from './supabase';
+import type { AppUser } from '../types';
 
-async function ensureUserDocument(user: FirebaseUser, name?: string): Promise<void> {
-  const ref = doc(db, 'users', user.uid);
-  const snap = await getDoc(ref);
-  if (snap.exists()) return;
-
-  await setDoc(ref, {
-    name: name ?? user.displayName ?? user.email?.split('@')[0] ?? 'Usuário',
-    email: user.email ?? '',
-    photoURL: user.photoURL ?? null,
-    createdAt: serverTimestamp(),
-  });
+/** Normaliza o usuário do Supabase Auth para o formato consumido pela UI. */
+function mapUser(u: SupabaseUser | null | undefined): AppUser | null {
+  if (!u) return null;
+  const meta = (u.user_metadata ?? {}) as Record<string, string | undefined>;
+  return {
+    id: u.id,
+    email: u.email ?? null,
+    displayName: meta.full_name ?? meta.name ?? (u.email ? u.email.split('@')[0] : null),
+    photoURL: meta.avatar_url ?? meta.picture ?? null,
+  };
 }
 
 export const authService = {
   async loginWithGoogle() {
-    const result = await signInWithPopup(auth, googleProvider);
-    await ensureUserDocument(result.user);
-    return result.user;
+    // Fluxo por redirect: a sessão volta na URL e é capturada pelo onAuthStateChange.
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin },
+    });
+    if (error) throw error;
   },
 
   async loginWithEmail(email: string, password: string) {
-    const result = await signInWithEmailAndPassword(auth, email, password);
-    await ensureUserDocument(result.user);
-    return result.user;
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    return mapUser(data.user);
   },
 
   async registerWithEmail(name: string, email: string, password: string) {
-    const result = await createUserWithEmailAndPassword(auth, email, password);
-    if (name) {
-      await updateProfile(result.user, { displayName: name });
-    }
-    await ensureUserDocument(result.user, name);
-    return result.user;
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: name } },
+    });
+    if (error) throw error;
+    return mapUser(data.user);
   },
 
   async logout() {
-    return signOut(auth);
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
   },
 
-  onAuthStateChanged(callback: (user: FirebaseUser | null) => void) {
-    return onAuthStateChanged(auth, callback);
+  onAuthStateChanged(callback: (user: AppUser | null) => void) {
+    // Em supabase-js, o evento INITIAL_SESSION dispara logo após o subscribe,
+    // entregando a sessão atual (ou null) — cobre o bootstrap do app.
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      callback(mapUser(session?.user));
+    });
+    return () => data.subscription.unsubscribe();
   },
 
-  currentUser() {
-    return auth.currentUser;
+  async currentUser(): Promise<AppUser | null> {
+    const { data } = await supabase.auth.getUser();
+    return mapUser(data.user);
   },
 };

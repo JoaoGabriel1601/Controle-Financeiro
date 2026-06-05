@@ -1,12 +1,12 @@
 import { format, parse } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { Timestamp } from 'firebase/firestore';
 
-export function formatCurrency(value: number, currency: string = 'BRL'): string {
+/** Formata um valor em **centavos inteiros** como moeda (ex.: 1050 → "R$ 10,50"). */
+export function formatCurrency(cents: number, currency: string = 'BRL'): string {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency,
-  }).format(value);
+  }).format(cents / 100);
 }
 
 export function formatNumber(value: number, fractionDigits = 2): string {
@@ -16,18 +16,17 @@ export function formatNumber(value: number, fractionDigits = 2): string {
   }).format(value);
 }
 
-export function toJsDate(value: Timestamp | Date | undefined | null): Date {
+export function toJsDate(value: string | Date | undefined | null): Date {
   if (!value) return new Date();
   if (value instanceof Date) return value;
-  if (typeof (value as Timestamp).toDate === 'function') return (value as Timestamp).toDate();
-  return new Date();
+  return new Date(value);
 }
 
-export function formatDate(value: Timestamp | Date, pattern = 'dd/MM/yyyy'): string {
+export function formatDate(value: string | Date, pattern = 'dd/MM/yyyy'): string {
   return format(toJsDate(value), pattern, { locale: ptBR });
 }
 
-export function formatMonthYear(value: Timestamp | Date): string {
+export function formatMonthYear(value: string | Date): string {
   return format(toJsDate(value), "MMMM 'de' yyyy", { locale: ptBR });
 }
 
@@ -39,7 +38,7 @@ export function parseMonthKey(key: string): Date {
   return parse(key, 'yyyy-MM', new Date());
 }
 
-export function dateInputValue(value: Timestamp | Date | undefined): string {
+export function dateInputValue(value: string | Date | undefined): string {
   if (!value) return format(new Date(), 'yyyy-MM-dd');
   return format(toJsDate(value), 'yyyy-MM-dd');
 }

@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react';
 import styles from './Input.module.css';
 
@@ -13,7 +14,8 @@ type SelectProps = SelectHTMLAttributes<HTMLSelectElement> & FieldProps;
 type TextareaProps = TextareaHTMLAttributes<HTMLTextAreaElement> & FieldProps;
 
 export function Input({ label, error, hint, leftIcon, className, id, ...rest }: InputProps) {
-  const inputId = id ?? `input-${Math.random().toString(36).slice(2, 9)}`;
+  const generatedId = useId();
+  const inputId = id ?? generatedId;
   return (
     <div className={styles.field}>
       {label && (
@@ -35,7 +37,8 @@ export function Input({ label, error, hint, leftIcon, className, id, ...rest }: 
 }
 
 export function Select({ label, error, hint, children, className, id, ...rest }: SelectProps) {
-  const inputId = id ?? `select-${Math.random().toString(36).slice(2, 9)}`;
+  const generatedId = useId();
+  const inputId = id ?? generatedId;
   return (
     <div className={styles.field}>
       {label && (
@@ -54,7 +57,8 @@ export function Select({ label, error, hint, children, className, id, ...rest }:
 }
 
 export function Textarea({ label, error, hint, className, id, ...rest }: TextareaProps) {
-  const inputId = id ?? `textarea-${Math.random().toString(36).slice(2, 9)}`;
+  const generatedId = useId();
+  const inputId = id ?? generatedId;
   return (
     <div className={styles.field}>
       {label && (

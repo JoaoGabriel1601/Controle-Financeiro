@@ -3,7 +3,7 @@ import { Mail, Lock, User as UserIcon } from 'lucide-react';
 import { authService } from '../../services/auth.service';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { toast } from '../../components/ui/Toast';
+import { toast } from '../../components/ui/toastStore';
 import styles from './Login.module.css';
 
 type Mode = 'login' | 'register';

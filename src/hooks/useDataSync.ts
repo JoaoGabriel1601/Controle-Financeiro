@@ -5,6 +5,7 @@ import { accountService } from '../services/account.service';
 import { categoryService } from '../services/category.service';
 import { transactionService } from '../services/transaction.service';
 import { budgetService } from '../services/budget.service';
+import { toast } from '../components/ui/toastStore';
 
 export function useDataSync() {
   const user = useAuthStore((s) => s.user);
@@ -14,7 +15,7 @@ export function useDataSync() {
   const setBudgets = useDataStore((s) => s.setBudgets);
   const reset = useDataStore((s) => s.reset);
 
-  const uid = user?.uid ?? null;
+  const uid = user?.id ?? null;
 
   useEffect(() => {
     if (!uid) {
@@ -22,14 +23,17 @@ export function useDataSync() {
       return;
     }
 
-    categoryService.ensureDefaults().catch((err) => {
-      console.warn('[categoryService.ensureDefaults]', err);
-    });
+    let notified = false;
+    const onError = () => {
+      if (notified) return;
+      notified = true;
+      toast.error('Falha ao sincronizar seus dados. Verifique sua conexão.');
+    };
 
-    const unsubAccounts = accountService.subscribe(setAccounts);
-    const unsubCategories = categoryService.subscribe(setCategories);
-    const unsubTransactions = transactionService.subscribe(setTransactions);
-    const unsubBudgets = budgetService.subscribe(setBudgets);
+    const unsubAccounts = accountService.subscribe(setAccounts, onError);
+    const unsubCategories = categoryService.subscribe(setCategories, onError);
+    const unsubTransactions = transactionService.subscribe(setTransactions, onError);
+    const unsubBudgets = budgetService.subscribe(setBudgets, onError);
 
     return () => {
       unsubAccounts();

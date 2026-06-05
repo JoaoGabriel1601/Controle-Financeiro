@@ -203,17 +203,27 @@ export function Dashboard() {
               const cat = categoryMap.get(tx.categoryId);
               const acc = accountMap.get(tx.accountId);
               const isIncome = tx.type === 'income';
+              const isTransfer = tx.type === 'transfer';
+              const toAcc = isTransfer ? accountMap.get(tx.toAccountId ?? '') : undefined;
               return (
                 <div key={tx.id} className={styles.recentItem}>
                   <span className={styles.recentIcon} style={{ background: cat?.color ?? 'var(--bg-card-hover)' }}>
-                    {cat?.icon ?? '💸'}
+                    {cat?.icon ?? (isTransfer ? '🔄' : '💸')}
                   </span>
                   <div className={styles.recentBody}>
                     <strong>{tx.description}</strong>
-                    <span>{cat?.name ?? 'Sem categoria'} · {acc?.name ?? '—'}</span>
+                    <span>
+                      {isTransfer
+                        ? `Transferência · ${acc?.name ?? '—'} → ${toAcc?.name ?? '—'}`
+                        : `${cat?.name ?? 'Sem categoria'} · ${acc?.name ?? '—'}`}
+                    </span>
                   </div>
-                  <span className={`${styles.recentAmount} ${isIncome ? styles.incomeTxt : styles.expenseTxt}`}>
-                    {isIncome ? '+' : '−'} {formatCurrency(tx.amount)}
+                  <span
+                    className={`${styles.recentAmount} ${
+                      isTransfer ? '' : isIncome ? styles.incomeTxt : styles.expenseTxt
+                    }`}
+                  >
+                    {isTransfer ? '' : isIncome ? '+ ' : '− '}{formatCurrency(tx.amount)}
                   </span>
                 </div>
               );

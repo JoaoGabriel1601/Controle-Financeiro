@@ -1,24 +1,24 @@
-import type { Timestamp } from 'firebase/firestore';
-
 export type AccountType = 'checking' | 'savings' | 'credit' | 'investment';
 export type TransactionType = 'income' | 'expense' | 'transfer';
 export type CategoryType = 'income' | 'expense';
 
-export interface User {
+/** Usuário autenticado, normalizado a partir do Supabase Auth. */
+export interface AppUser {
   id: string;
-  name: string;
-  email: string;
-  photoURL?: string;
-  createdAt: Timestamp;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
 }
 
 export interface Account {
   id: string;
   name: string;
   type: AccountType;
+  /** Saldo em centavos inteiros. */
   balance: number;
   currency: string;
-  createdAt: Timestamp;
+  /** Data ISO (timestamptz). */
+  createdAt: string;
 }
 
 export interface Category {
@@ -32,17 +32,23 @@ export interface Category {
 export interface Transaction {
   id: string;
   accountId: string;
+  /** Conta de destino — usado apenas quando `type === 'transfer'`. */
+  toAccountId?: string | null;
   categoryId: string;
   type: TransactionType;
+  /** Valor em centavos inteiros. */
   amount: number;
   description: string;
-  date: Timestamp;
-  createdAt: Timestamp;
+  /** Data ISO (timestamptz). */
+  date: string;
+  /** Data ISO (timestamptz). */
+  createdAt: string;
 }
 
 export interface Budget {
   id: string;
   categoryId: string;
+  /** Limite em centavos inteiros. */
   limitAmount: number;
   month: number;
   year: number;

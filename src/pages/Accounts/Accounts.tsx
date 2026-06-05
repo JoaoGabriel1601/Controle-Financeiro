@@ -6,10 +6,11 @@ import { Modal } from '../../components/ui/Modal';
 import { Input, Select } from '../../components/ui/Input';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
-import { toast } from '../../components/ui/Toast';
+import { toast } from '../../components/ui/toastStore';
 import { useDataStore } from '../../stores/dataStore';
 import { accountService } from '../../services/account.service';
 import { formatCurrency } from '../../utils/format';
+import { centsToReais, reaisToCents } from '../../utils/money';
 import { computeAccountBalance, computeTotalBalance } from '../../utils/stats';
 import type { Account, AccountInput, AccountType } from '../../types';
 import styles from './Accounts.module.css';
@@ -55,6 +56,17 @@ export function AccountsPage() {
     [accounts, transactions],
   );
 
+  const requestDelete = (account: Account) => {
+    const linked = transactions.filter((t) => t.accountId === account.id).length;
+    if (linked > 0) {
+      toast.error(
+        `"${account.name}" tem ${linked} ${linked === 1 ? 'transação vinculada' : 'transações vinculadas'}. Remova ou reatribua antes de excluir.`,
+      );
+      return;
+    }
+    setDeleting(account);
+  };
+
   const openNew = () => {
     setEditing(null);
     setForm(EMPTY);
@@ -66,7 +78,7 @@ export function AccountsPage() {
     setForm({
       name: account.name,
       type: account.type,
-      balance: account.balance,
+      balance: centsToReais(account.balance),
       currency: account.currency,
     });
     setModalOpen(true);
@@ -77,11 +89,12 @@ export function AccountsPage() {
     if (!form.name.trim()) return toast.error('Informe o nome da conta');
     setSubmitting(true);
     try {
+      const payload = { ...form, balance: reaisToCents(form.balance) };
       if (editing) {
-        await accountService.update(editing.id, form);
+        await accountService.update(editing.id, payload);
         toast.success('Conta atualizada');
       } else {
-        await accountService.create(form);
+        await accountService.create(payload);
         toast.success('Conta criada');
       }
       setModalOpen(false);
@@ -151,7 +164,7 @@ export function AccountsPage() {
                   <button onClick={() => openEdit(account)} aria-label="Editar">
                     <Pencil size={14} />
                   </button>
-                  <button onClick={() => setDeleting(account)} aria-label="Remover">
+                  <button onClick={() => requestDelete(account)} aria-label="Remover">
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -220,7 +233,7 @@ export function AccountsPage() {
       <ConfirmDialog
         open={!!deleting}
         title="Remover conta"
-        description={`Tem certeza que deseja remover "${deleting?.name}"? As transações associadas continuarão existindo, mas perderão a referência.`}
+        description={`Tem certeza que deseja remover "${deleting?.name}"?`}
         confirmLabel="Remover"
         destructive
         loading={removing}

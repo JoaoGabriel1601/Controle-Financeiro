@@ -7,7 +7,7 @@ import { Input, Select } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
-import { toast } from '../../components/ui/Toast';
+import { toast } from '../../components/ui/toastStore';
 import { useDataStore } from '../../stores/dataStore';
 import { categoryService } from '../../services/category.service';
 import type { Category, CategoryInput } from '../../types';
@@ -32,6 +32,8 @@ const EMPTY: CategoryInput = {
 
 export function CategoriesPage() {
   const categories = useDataStore((s) => s.categories);
+  const transactions = useDataStore((s) => s.transactions);
+  const budgets = useDataStore((s) => s.budgets);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
   const [form, setForm] = useState<CategoryInput>(EMPTY);
@@ -63,6 +65,19 @@ export function CategoriesPage() {
     setEditing(cat);
     setForm({ name: cat.name, icon: cat.icon, color: cat.color, type: cat.type });
     setModalOpen(true);
+  };
+
+  const requestDelete = (cat: Category) => {
+    const linkedTx = transactions.filter((t) => t.categoryId === cat.id).length;
+    const linkedBudgets = budgets.filter((b) => b.categoryId === cat.id).length;
+    if (linkedTx > 0 || linkedBudgets > 0) {
+      const parts: string[] = [];
+      if (linkedTx > 0) parts.push(`${linkedTx} ${linkedTx === 1 ? 'transação' : 'transações'}`);
+      if (linkedBudgets > 0) parts.push(`${linkedBudgets} ${linkedBudgets === 1 ? 'orçamento' : 'orçamentos'}`);
+      toast.error(`"${cat.name}" está em uso (${parts.join(' e ')}). Remova ou reatribua antes de excluir.`);
+      return;
+    }
+    setDeleting(cat);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -139,10 +154,10 @@ export function CategoriesPage() {
       ) : (
         <div className={styles.groups}>
           {(filter === 'all' || filter === 'expense') && grouped.expense.length > 0 && (
-            <CategoryGroup title="Despesas" tone="danger" items={grouped.expense} onEdit={openEdit} onDelete={setDeleting} />
+            <CategoryGroup title="Despesas" tone="danger" items={grouped.expense} onEdit={openEdit} onDelete={requestDelete} />
           )}
           {(filter === 'all' || filter === 'income') && grouped.income.length > 0 && (
-            <CategoryGroup title="Receitas" tone="success" items={grouped.income} onEdit={openEdit} onDelete={setDeleting} />
+            <CategoryGroup title="Receitas" tone="success" items={grouped.income} onEdit={openEdit} onDelete={requestDelete} />
           )}
         </div>
       )}
@@ -216,7 +231,7 @@ export function CategoriesPage() {
       <ConfirmDialog
         open={!!deleting}
         title="Remover categoria"
-        description={`Tem certeza que deseja remover "${deleting?.name}"? Transações associadas perderão a referência da categoria.`}
+        description={`Tem certeza que deseja remover "${deleting?.name}"?`}
         confirmLabel="Remover"
         destructive
         loading={removing}
