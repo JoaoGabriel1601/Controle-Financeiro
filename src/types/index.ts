@@ -54,7 +54,27 @@ export interface Budget {
   year: number;
 }
 
+export type Frequency = 'weekly' | 'monthly' | 'yearly';
+
+export interface RecurringTransaction {
+  id: string;
+  accountId: string;
+  categoryId: string | null;
+  type: 'income' | 'expense';
+  /** Valor em centavos inteiros. */
+  amount: number;
+  description: string;
+  frequency: Frequency;
+  dayOfMonth?: number | null;
+  isActive: boolean;
+  /** Próxima data de geração (ISO `yyyy-MM-dd`). */
+  nextDueDate: string;
+  /** Data ISO (timestamptz). */
+  createdAt: string;
+}
+
 export type AccountInput = Omit<Account, 'id' | 'createdAt'>;
 export type CategoryInput = Omit<Category, 'id'>;
 export type TransactionInput = Omit<Transaction, 'id' | 'createdAt'>;
 export type BudgetInput = Omit<Budget, 'id'>;
+export type RecurringInput = Omit<RecurringTransaction, 'id' | 'createdAt' | 'dayOfMonth'>;

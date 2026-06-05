@@ -22,6 +22,9 @@ const AccountsPage = lazy(() =>
   import('./pages/Accounts').then((m) => ({ default: m.AccountsPage })),
 );
 const BudgetsPage = lazy(() => import('./pages/Budgets').then((m) => ({ default: m.BudgetsPage })));
+const RecurringPage = lazy(() =>
+  import('./pages/Recurring').then((m) => ({ default: m.RecurringPage })),
+);
 const ReportsPage = lazy(() => import('./pages/Reports').then((m) => ({ default: m.ReportsPage })));
 const SettingsPage = lazy(() =>
   import('./pages/Settings').then((m) => ({ default: m.SettingsPage })),
@@ -61,6 +64,7 @@ export function App() {
                 <Route path="/categorias" element={<CategoriesPage />} />
                 <Route path="/contas" element={<AccountsPage />} />
                 <Route path="/orcamentos" element={<BudgetsPage />} />
+                <Route path="/recorrentes" element={<RecurringPage />} />
                 <Route path="/relatorios" element={<ReportsPage />} />
                 <Route path="/configuracoes" element={<SettingsPage />} />
                 <Route path="/login" element={<Navigate to="/" replace />} />

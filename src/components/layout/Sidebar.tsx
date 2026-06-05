@@ -5,6 +5,7 @@ import {
   Tags,
   Wallet,
   Target,
+  Repeat,
   FileText,
   Settings,
   X,
@@ -22,6 +23,7 @@ const NAV_ITEMS = [
   { to: '/categorias', label: 'Categorias', icon: Tags },
   { to: '/contas', label: 'Contas', icon: Wallet },
   { to: '/orcamentos', label: 'Orçamentos', icon: Target },
+  { to: '/recorrentes', label: 'Recorrentes', icon: Repeat },
   { to: '/relatorios', label: 'Relatórios', icon: FileText },
   { to: '/configuracoes', label: 'Configurações', icon: Settings },
 ];
