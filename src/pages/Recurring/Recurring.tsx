@@ -114,6 +114,7 @@ export function RecurringPage() {
         toast.success('Recorrência criada');
       }
       setModalOpen(false);
+      void generateDueNow();
     } catch {
       toast.error('Não foi possível salvar');
     } finally {
@@ -121,10 +122,28 @@ export function RecurringPage() {
     }
   };
 
+  // Gera de imediato os lançamentos já vencidos (next_due_date <= hoje) para
+  // refletirem no dashboard/gráficos na hora — sem esperar o próximo carregamento
+  // do app ou o job diário. As inserções chegam pelas assinaturas em tempo real.
+  const generateDueNow = async () => {
+    try {
+      const generated = await recurringService.processDue();
+      if (generated > 0) {
+        toast.success(
+          `${generated} ${generated === 1 ? 'lançamento gerado' : 'lançamentos gerados'}`,
+        );
+      }
+    } catch {
+      // Silencioso: a recorrência já foi salva; a geração tenta de novo no
+      // próximo carregamento do app ou no job diário.
+    }
+  };
+
   const toggleActive = async (r: RecurringTransaction) => {
     try {
       await recurringService.update(r.id, { isActive: !r.isActive });
       toast.success(r.isActive ? 'Recorrência pausada' : 'Recorrência reativada');
+      if (!r.isActive) void generateDueNow();
     } catch {
       toast.error('Não foi possível atualizar');
     }

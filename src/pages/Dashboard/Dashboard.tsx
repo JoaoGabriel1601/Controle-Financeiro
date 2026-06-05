@@ -8,6 +8,7 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   ArrowRight,
+  Repeat,
 } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
@@ -15,7 +16,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { Button } from '../../components/ui/Button';
 import { useDataStore } from '../../stores/dataStore';
 import { useAuthStore } from '../../stores/authStore';
-import { formatCurrency } from '../../utils/format';
+import { formatCurrency, formatDate, parseDateInput } from '../../utils/format';
 import {
   breakdownByCategory,
   computeTotalBalance,
@@ -30,11 +31,18 @@ import styles from './Dashboard.module.css';
 
 type MonthWindow = 3 | 6 | 12;
 
+const FREQ_LABEL: Record<string, string> = {
+  weekly: 'Semanal',
+  monthly: 'Mensal',
+  yearly: 'Anual',
+};
+
 export function Dashboard() {
   const user = useAuthStore((s) => s.user);
   const transactions = useDataStore((s) => s.transactions);
   const categories = useDataStore((s) => s.categories);
   const accounts = useDataStore((s) => s.accounts);
+  const recurring = useDataStore((s) => s.recurring);
   const [monthsBack, setMonthsBack] = useState<MonthWindow>(6);
 
   const monthIncome = useMemo(() => totalForMonth(transactions, 'income'), [transactions]);
@@ -55,6 +63,15 @@ export function Dashboard() {
   const avgIncome = useMemo(() => rollingAverage(transactions, monthsBack, 'income'), [transactions, monthsBack]);
 
   const recent = useMemo(() => transactions.slice(0, 5), [transactions]);
+
+  const upcoming = useMemo(
+    () =>
+      recurring
+        .filter((r) => r.isActive)
+        .sort((a, b) => a.nextDueDate.localeCompare(b.nextDueDate))
+        .slice(0, 5),
+    [recurring],
+  );
 
   const categoryMap = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
   const accountMap = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
@@ -183,6 +200,49 @@ export function Dashboard() {
           <MonthlyBarChart data={monthlySummary} />
         </Card>
       </div>
+
+      {upcoming.length > 0 && (
+        <Card
+          title="Próximos lançamentos"
+          subtitle="Recorrências agendadas (ainda não lançadas)"
+          action={
+            <Link to="/recorrentes">
+              <Button variant="ghost" size="sm" rightIcon={<ArrowRight size={14} />}>
+                Gerenciar
+              </Button>
+            </Link>
+          }
+        >
+          <div className={styles.recent}>
+            {upcoming.map((r) => {
+              const cat = r.categoryId ? categoryMap.get(r.categoryId) : undefined;
+              const isIncome = r.type === 'income';
+              return (
+                <div key={r.id} className={styles.recentItem}>
+                  <span
+                    className={styles.recentIcon}
+                    style={{ background: cat?.color ?? 'var(--bg-card-hover)' }}
+                  >
+                    {cat?.icon ?? <Repeat size={16} />}
+                  </span>
+                  <div className={styles.recentBody}>
+                    <strong>{r.description}</strong>
+                    <span>
+                      {FREQ_LABEL[r.frequency]} · {formatDate(parseDateInput(r.nextDueDate))}
+                    </span>
+                  </div>
+                  <span
+                    className={`${styles.recentAmount} ${isIncome ? styles.incomeTxt : styles.expenseTxt}`}
+                  >
+                    {isIncome ? '+ ' : '− '}
+                    {formatCurrency(r.amount)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       <Card
         title="Transações recentes"
