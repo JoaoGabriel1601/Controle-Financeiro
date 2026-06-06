@@ -36,3 +36,6 @@ ios/
 
 # Build artifacts
 *.tsbuildinfo
+
+# Vercel
+.vercel
