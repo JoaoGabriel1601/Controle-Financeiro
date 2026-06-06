@@ -1,4 +1,5 @@
 import { addMonths, format, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import type { Transaction, Category, Account } from '../types';
 import { toJsDate } from './format';
 import { roundCents } from './money';
@@ -62,7 +63,7 @@ export function summarizeByMonth(
 
     months.push({
       month: key,
-      monthLabel: format(ref, 'MMM/yy'),
+      monthLabel: format(ref, 'MMM/yy', { locale: ptBR }),
       income,
       expense,
       balance: income - expense,

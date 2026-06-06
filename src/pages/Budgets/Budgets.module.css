@@ -68,8 +68,14 @@
 
 .list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  /* Grade fixa que fecha as linhas (2 → 1), sem card solto com espaço morto. */
+  grid-template-columns: repeat(2, 1fr);
   gap: 16px;
+}
+@media (max-width: 760px) {
+  .list {
+    grid-template-columns: 1fr;
+  }
 }
 
 .budgetHead {

@@ -9,7 +9,7 @@ import {
   Legend,
 } from 'recharts';
 import type { MonthlySummary } from '../../utils/stats';
-import { formatCurrency } from '../../utils/format';
+import { formatCompactCurrency, formatCurrency } from '../../utils/format';
 
 interface Props {
   data: MonthlySummary[];
@@ -19,15 +19,28 @@ export function IncomeExpenseLineChart({ data }: Props) {
   return (
     <div style={{ width: '100%', height: 300 }}>
       <ResponsiveContainer>
-        <LineChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: -20 }}>
+        <LineChart data={data} margin={{ top: 8, right: 12, bottom: 4, left: 8 }}>
           <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
-          <XAxis dataKey="monthLabel" stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} />
+          <XAxis
+            dataKey="monthLabel"
+            stroke="var(--text-muted)"
+            fontSize={12}
+            tickLine={false}
+            axisLine={false}
+            tickMargin={10}
+            padding={{ left: 16, right: 16 }}
+          />
           <YAxis
             stroke="var(--text-muted)"
             fontSize={12}
             tickLine={false}
             axisLine={false}
-            tickFormatter={(v) => `R$ ${Math.round(v / 100000)}k`}
+            allowDecimals={false}
+            domain={[0, (max: number) => Math.max(max, 150000)]}
+            tickCount={7}
+            width={56}
+            tickMargin={8}
+            tickFormatter={(v) => formatCompactCurrency(Number(v))}
           />
           <Tooltip
             cursor={{ stroke: 'var(--primary)', strokeOpacity: 0.2 }}

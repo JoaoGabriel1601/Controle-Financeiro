@@ -9,6 +9,22 @@ export function formatCurrency(cents: number, currency: string = 'BRL'): string 
   }).format(cents / 100);
 }
 
+/**
+ * Formata **centavos** de forma compacta para eixos de gráfico, evitando rótulos
+ * repetidos: < R$ 1.000 → "R$ 450"; ≥ R$ 1.000 → "R$ 1,5k".
+ */
+export function formatCompactCurrency(cents: number): string {
+  const reais = cents / 100;
+  if (Math.abs(reais) >= 1000) {
+    const k = new Intl.NumberFormat('pt-BR', {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    }).format(reais / 1000);
+    return `R$ ${k}k`;
+  }
+  return `R$ ${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 }).format(reais)}`;
+}
+
 export function formatNumber(value: number, fractionDigits = 2): string {
   return new Intl.NumberFormat('pt-BR', {
     minimumFractionDigits: fractionDigits,

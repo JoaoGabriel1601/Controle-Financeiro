@@ -92,6 +92,11 @@
   color: var(--primary);
 }
 
+.mobileList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
 .mobileRow {
   display: flex;
   align-items: center;
