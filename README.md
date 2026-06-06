@@ -72,18 +72,46 @@ O schema vive no projeto Supabase: tabelas `accounts`, `categories`, `transactio
 todas com RLS por dono e adicionadas à publication `supabase_realtime`. As 11 categorias padrão
 são criadas automaticamente no signup por uma trigger (`handle_new_user` em `auth.users`).
 
-## Deploy
+## Deploy (Vercel)
 
-O front é um SPA estático (`dist`) — publique em qualquer host estático gratuito
-(Cloudflare Pages, Vercel ou Netlify):
+O front é um SPA estático (`dist`) hospedado na **Vercel**, em produção:
 
-```bash
-npm run build   # gera dist/
+- 🌐 **Produção:** https://controle-financeiro-one-wine.vercel.app
+- O projeto está **conectado ao GitHub**: cada `git push` na `main` dispara um deploy
+  automático (e cada PR gera um *preview*).
+
+### Configuração na Vercel
+
+A Vercel detecta o **Vite** sozinha (Build: `vite build`, Output: `dist`). O roteamento
+client-side (React Router) é resolvido pelo [`vercel.json`](vercel.json), que reescreve todas
+as rotas para `index.html` — sem ele, links diretos como `/transacoes` dariam 404.
+
+**Environment Variables** (em _Project → Settings → Environment Variables_, escopo Production):
+
+```
+VITE_SUPABASE_URL=https://<project>.supabase.co
+VITE_SUPABASE_ANON_KEY=sb_publishable_xxxxxxxxxxxxxxxxxxxx
 ```
 
-Configure as variáveis `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` no painel do host e
-adicione a URL de produção em **Authentication → URL Configuration** no Supabase (Site URL e
-Redirect URLs) para o login com Google funcionar.
+> São lidas em **build time** pelo Vite. Se faltarem, o app exibe "Configuração do Supabase
+> ausente" (ver [`src/main.tsx`](src/main.tsx)).
+
+### Supabase (uma vez, por URL de produção)
+
+Em **Authentication → URL Configuration** no Supabase:
+
+- **Site URL:** a URL de produção da Vercel
+- **Redirect URLs:** a mesma URL com `/**` (e, opcionalmente, `https://*.vercel.app/**` para
+  os previews) — necessário para o login com **Google**.
+
+### Deploy manual (alternativa ao push)
+
+Com a [CLI da Vercel](https://vercel.com/docs/cli) autenticada (`VERCEL_TOKEN` ou `vercel login`):
+
+```bash
+npm run build                  # opcional, só para conferir o build local
+vercel deploy --prod --yes     # publica em produção
+```
 
 ## Estrutura
 
