@@ -11,7 +11,7 @@ import { toast } from '../../components/ui/toastStore';
 import { useDataStore } from '../../stores/dataStore';
 import { recurringService } from '../../services/recurring.service';
 import { dateInputValue, formatCurrency, formatDate, parseDateInput } from '../../utils/format';
-import { centsToReais, reaisToCents } from '../../utils/money';
+import { centsToReais, parseMoneyInput, reaisToCents } from '../../utils/money';
 import type { Frequency, RecurringTransaction, RecurringInput } from '../../types';
 import styles from './Recurring.module.css';
 
@@ -87,7 +87,7 @@ export function RecurringPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const amount = reaisToCents(Number(form.amount));
+    const amount = reaisToCents(parseMoneyInput(form.amount));
     if (!amount || amount <= 0) return toast.error('Informe um valor maior que zero');
     if (!form.description.trim()) return toast.error('Informe uma descrição');
     if (!form.categoryId) return toast.error('Selecione uma categoria');
@@ -272,8 +272,8 @@ export function RecurringPage() {
           <div className={styles.formRow}>
             <Input
               label="Valor"
-              type="number"
-              step="0.01"
+              type="text"
+              inputMode="decimal"
               placeholder="0,00"
               value={form.amount}
               onChange={(e) => setForm({ ...form, amount: e.target.value })}

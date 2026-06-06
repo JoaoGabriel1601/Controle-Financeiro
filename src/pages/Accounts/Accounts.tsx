@@ -10,7 +10,7 @@ import { toast } from '../../components/ui/toastStore';
 import { useDataStore } from '../../stores/dataStore';
 import { accountService } from '../../services/account.service';
 import { formatCurrency } from '../../utils/format';
-import { centsToReais, reaisToCents } from '../../utils/money';
+import { centsToReais, parseMoneyInput, reaisToCents } from '../../utils/money';
 import { computeAccountBalance, computeTotalBalance } from '../../utils/stats';
 import type { Account, AccountInput, AccountType } from '../../types';
 import styles from './Accounts.module.css';
@@ -29,10 +29,17 @@ const TYPE_ICONS: Record<AccountType, React.ReactNode> = {
   investment: <TrendingUp size={18} />,
 };
 
-const EMPTY: AccountInput = {
+interface FormState {
+  name: string;
+  type: AccountType;
+  balance: string;
+  currency: string;
+}
+
+const EMPTY: FormState = {
   name: '',
   type: 'checking',
-  balance: 0,
+  balance: '',
   currency: 'BRL',
 };
 
@@ -41,7 +48,7 @@ export function AccountsPage() {
   const transactions = useDataStore((s) => s.transactions);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Account | null>(null);
-  const [form, setForm] = useState<AccountInput>(EMPTY);
+  const [form, setForm] = useState<FormState>(EMPTY);
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState<Account | null>(null);
   const [removing, setRemoving] = useState(false);
@@ -78,7 +85,7 @@ export function AccountsPage() {
     setForm({
       name: account.name,
       type: account.type,
-      balance: centsToReais(account.balance),
+      balance: String(centsToReais(account.balance)),
       currency: account.currency,
     });
     setModalOpen(true);
@@ -89,7 +96,8 @@ export function AccountsPage() {
     if (!form.name.trim()) return toast.error('Informe o nome da conta');
     setSubmitting(true);
     try {
-      const payload = { ...form, balance: reaisToCents(form.balance) };
+      const parsed = parseMoneyInput(form.balance);
+      const payload: AccountInput = { ...form, balance: Number.isNaN(parsed) ? 0 : reaisToCents(parsed) };
       if (editing) {
         await accountService.update(editing.id, payload);
         toast.success('Conta atualizada');
@@ -210,12 +218,12 @@ export function AccountsPage() {
             ))}
           </Select>
           <Input
-            type="number"
-            step="0.01"
+            type="text"
+            inputMode="decimal"
             label={editing ? 'Saldo inicial registrado' : 'Saldo inicial'}
             placeholder="0,00"
             value={form.balance}
-            onChange={(e) => setForm({ ...form, balance: Number(e.target.value) || 0 })}
+            onChange={(e) => setForm({ ...form, balance: e.target.value })}
             hint="O saldo final é calculado adicionando suas transações."
           />
           <Select

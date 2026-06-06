@@ -11,7 +11,7 @@ import { toast } from '../../components/ui/toastStore';
 import { useDataStore } from '../../stores/dataStore';
 import { budgetService } from '../../services/budget.service';
 import { formatCurrency, toJsDate } from '../../utils/format';
-import { centsToReais, reaisToCents } from '../../utils/money';
+import { centsToReais, parseMoneyInput, reaisToCents } from '../../utils/money';
 import type { Budget, BudgetInput } from '../../types';
 import styles from './Budgets.module.css';
 
@@ -24,9 +24,16 @@ const currentDate = new Date();
 const CURRENT_MONTH = currentDate.getMonth() + 1;
 const CURRENT_YEAR = currentDate.getFullYear();
 
-const emptyForm = (categoryId: string): BudgetInput => ({
+interface FormState {
+  categoryId: string;
+  limitAmount: string;
+  month: number;
+  year: number;
+}
+
+const emptyForm = (categoryId: string): FormState => ({
   categoryId,
-  limitAmount: 0,
+  limitAmount: '',
   month: CURRENT_MONTH,
   year: CURRENT_YEAR,
 });
@@ -38,7 +45,7 @@ export function BudgetsPage() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Budget | null>(null);
-  const [form, setForm] = useState<BudgetInput>(emptyForm(''));
+  const [form, setForm] = useState<FormState>(emptyForm(''));
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState<Budget | null>(null);
   const [removing, setRemoving] = useState(false);
@@ -74,7 +81,7 @@ export function BudgetsPage() {
     setEditing(b);
     setForm({
       categoryId: b.categoryId,
-      limitAmount: centsToReais(b.limitAmount),
+      limitAmount: String(centsToReais(b.limitAmount)),
       month: b.month,
       year: b.year,
     });
@@ -83,8 +90,9 @@ export function BudgetsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const limitAmount = reaisToCents(parseMoneyInput(form.limitAmount));
     if (!form.categoryId) return toast.error('Selecione uma categoria');
-    if (form.limitAmount <= 0) return toast.error('Informe um valor maior que zero');
+    if (!limitAmount || limitAmount <= 0) return toast.error('Informe um valor maior que zero');
 
     const isDuplicate = budgets.some(
       (b) =>
@@ -97,7 +105,7 @@ export function BudgetsPage() {
 
     setSubmitting(true);
     try {
-      const payload = { ...form, limitAmount: reaisToCents(form.limitAmount) };
+      const payload: BudgetInput = { ...form, limitAmount };
       if (editing) {
         await budgetService.update(editing.id, payload);
         toast.success('Orçamento atualizado');
@@ -266,12 +274,12 @@ export function BudgetsPage() {
             ))}
           </Select>
           <Input
-            type="number"
-            step="0.01"
+            type="text"
+            inputMode="decimal"
             label="Limite mensal"
             placeholder="0,00"
-            value={form.limitAmount || ''}
-            onChange={(e) => setForm({ ...form, limitAmount: Number(e.target.value) || 0 })}
+            value={form.limitAmount}
+            onChange={(e) => setForm({ ...form, limitAmount: e.target.value })}
           />
           <div className={styles.formRow}>
             <Select
