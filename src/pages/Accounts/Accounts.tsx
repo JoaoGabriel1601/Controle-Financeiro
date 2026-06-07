@@ -12,7 +12,8 @@ import { accountService } from '../../services/account.service';
 import { formatCurrency } from '../../utils/format';
 import { centsToReais, parseMoneyInput, reaisToCents } from '../../utils/money';
 import { computeAccountBalance, computeTotalBalance } from '../../utils/stats';
-import type { Account, AccountInput, AccountType } from '../../types';
+import { availableLimit, buildInvoices, currentCompetencia } from '../../utils/invoices';
+import type { Account, AccountInput, AccountType, Transaction } from '../../types';
 import styles from './Accounts.module.css';
 
 const TYPE_LABELS: Record<AccountType, string> = {
@@ -34,6 +35,10 @@ interface FormState {
   type: AccountType;
   balance: string;
   currency: string;
+  creditLimit: string;
+  closingDay: string;
+  dueDay: string;
+  paymentAccountId: string;
 }
 
 const EMPTY: FormState = {
@@ -41,6 +46,10 @@ const EMPTY: FormState = {
   type: 'checking',
   balance: '',
   currency: 'BRL',
+  creditLimit: '',
+  closingDay: '',
+  dueDay: '',
+  paymentAccountId: '',
 };
 
 export function AccountsPage() {
@@ -62,6 +71,9 @@ export function AccountsPage() {
     () => new Map(accounts.map((a) => [a.id, computeAccountBalance(a, transactions)])),
     [accounts, transactions],
   );
+
+  // Contas de dinheiro que podem pagar uma fatura (exclui cartões).
+  const cashAccounts = useMemo(() => accounts.filter((a) => a.type !== 'credit'), [accounts]);
 
   const requestDelete = (account: Account) => {
     const linked = transactions.filter((t) => t.accountId === account.id).length;
@@ -85,8 +97,13 @@ export function AccountsPage() {
     setForm({
       name: account.name,
       type: account.type,
-      balance: String(centsToReais(account.balance)),
+      // Cartão guarda a dívida como saldo negativo; exibe o valor positivo no form.
+      balance: String(centsToReais(account.type === 'credit' ? -account.balance : account.balance)),
       currency: account.currency,
+      creditLimit: account.creditLimit != null ? String(centsToReais(account.creditLimit)) : '',
+      closingDay: account.closingDay != null ? String(account.closingDay) : '',
+      dueDay: account.dueDay != null ? String(account.dueDay) : '',
+      paymentAccountId: account.paymentAccountId ?? '',
     });
     setModalOpen(true);
   };
@@ -94,10 +111,33 @@ export function AccountsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim()) return toast.error('Informe o nome da conta');
+    const isCredit = form.type === 'credit';
+    if (isCredit) {
+      const closing = Number(form.closingDay);
+      const due = Number(form.dueDay);
+      if (!form.closingDay || closing < 1 || closing > 31)
+        return toast.error('Informe um dia de fechamento entre 1 e 31');
+      if (!form.dueDay || due < 1 || due > 31)
+        return toast.error('Informe um dia de vencimento entre 1 e 31');
+    }
+
     setSubmitting(true);
     try {
       const parsed = parseMoneyInput(form.balance);
-      const payload: AccountInput = { ...form, balance: Number.isNaN(parsed) ? 0 : reaisToCents(parsed) };
+      const limitParsed = parseMoneyInput(form.creditLimit);
+      const balanceCents = Number.isNaN(parsed) ? 0 : reaisToCents(parsed);
+      const payload: AccountInput = {
+        name: form.name,
+        type: form.type,
+        currency: form.currency,
+        // Num cartão, o "saldo inicial" é fatura em aberto (dívida) → saldo negativo.
+        balance: isCredit ? -balanceCents : balanceCents,
+        // Campos de cartão: preenchidos só quando type='credit', senão zerados.
+        creditLimit: isCredit && !Number.isNaN(limitParsed) ? reaisToCents(limitParsed) : null,
+        closingDay: isCredit ? Number(form.closingDay) : null,
+        dueDay: isCredit ? Number(form.dueDay) : null,
+        paymentAccountId: isCredit ? form.paymentAccountId || null : null,
+      };
       if (editing) {
         await accountService.update(editing.id, payload);
         toast.success('Conta atualizada');
@@ -179,7 +219,13 @@ export function AccountsPage() {
               </div>
               <div className={styles.cardName}>{account.name}</div>
               <div className={styles.cardType}>{TYPE_LABELS[account.type]}</div>
-              <div className={styles.cardBalance}>{formatCurrency(balanceMap.get(account.id) ?? account.balance, account.currency)}</div>
+              {account.type === 'credit' ? (
+                <CreditCardFooter account={account} transactions={transactions} />
+              ) : (
+                <div className={styles.cardBalance}>
+                  {formatCurrency(balanceMap.get(account.id) ?? account.balance, account.currency)}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -217,14 +263,70 @@ export function AccountsPage() {
               <option key={value} value={value}>{label}</option>
             ))}
           </Select>
+
+          {form.type === 'credit' && (
+            <>
+              <Input
+                type="text"
+                inputMode="decimal"
+                label="Limite do cartão"
+                placeholder="0,00"
+                value={form.creditLimit}
+                onChange={(e) => setForm({ ...form, creditLimit: e.target.value })}
+              />
+              <div className={styles.formRow}>
+                <Input
+                  type="number"
+                  min={1}
+                  max={31}
+                  label="Dia de fechamento"
+                  placeholder="Ex.: 28"
+                  value={form.closingDay}
+                  onChange={(e) => setForm({ ...form, closingDay: e.target.value })}
+                />
+                <Input
+                  type="number"
+                  min={1}
+                  max={31}
+                  label="Dia de vencimento"
+                  placeholder="Ex.: 5"
+                  value={form.dueDay}
+                  onChange={(e) => setForm({ ...form, dueDay: e.target.value })}
+                />
+              </div>
+              <Select
+                label="Conta que paga a fatura"
+                value={form.paymentAccountId}
+                onChange={(e) => setForm({ ...form, paymentAccountId: e.target.value })}
+              >
+                <option value="">Selecione (opcional)...</option>
+                {cashAccounts.map((a) => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </Select>
+            </>
+          )}
+
           <Input
             type="text"
             inputMode="decimal"
-            label={editing ? 'Saldo inicial registrado' : 'Saldo inicial'}
+            label={
+              form.type === 'credit'
+                ? editing
+                  ? 'Saldo da fatura já existente'
+                  : 'Fatura em aberto inicial'
+                : editing
+                  ? 'Saldo inicial registrado'
+                  : 'Saldo inicial'
+            }
             placeholder="0,00"
             value={form.balance}
             onChange={(e) => setForm({ ...form, balance: e.target.value })}
-            hint="O saldo final é calculado adicionando suas transações."
+            hint={
+              form.type === 'credit'
+                ? 'Deixe 0 se vai lançar os gastos do cartão pelas transações.'
+                : 'O saldo final é calculado adicionando suas transações.'
+            }
           />
           <Select
             label="Moeda"
@@ -248,6 +350,36 @@ export function AccountsPage() {
         onConfirm={handleDelete}
         onCancel={() => setDeleting(null)}
       />
+    </div>
+  );
+}
+
+interface CreditCardFooterProps {
+  account: Account;
+  transactions: Transaction[];
+}
+
+/** Rodapé do card de cartão: fatura em aberto + limite disponível. */
+function CreditCardFooter({ account, transactions }: CreditCardFooterProps) {
+  const competencia = currentCompetencia(account);
+  const invoice = useMemo(
+    () => buildInvoices(account, transactions).find((i) => i.competencia === competencia),
+    [account, transactions, competencia],
+  );
+  const available = availableLimit(account, transactions);
+
+  return (
+    <div className={styles.creditFooter}>
+      <div>
+        <span className={styles.creditLabel}>Fatura atual</span>
+        <div className={styles.cardBalance}>{formatCurrency(invoice?.total ?? 0, account.currency)}</div>
+      </div>
+      {account.creditLimit != null && (
+        <div>
+          <span className={styles.creditLabel}>Limite disponível</span>
+          <div className={styles.creditAvailable}>{formatCurrency(available, account.currency)}</div>
+        </div>
+      )}
     </div>
   );
 }

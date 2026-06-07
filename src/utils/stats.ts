@@ -1,6 +1,6 @@
 import { addMonths, format, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { Transaction, Category, Account } from '../types';
+import type { Transaction, Category, Account, Loan } from '../types';
 import { toJsDate } from './format';
 import { roundCents } from './money';
 
@@ -34,8 +34,36 @@ export function computeAccountBalance(account: Account, transactions: Transactio
   return account.balance + movement;
 }
 
+/**
+ * Patrimônio: soma de **todas** as contas. A dívida do cartão (conta `credit`)
+ * entra com saldo negativo, então já é abatida aqui.
+ */
 export function computeTotalBalance(accounts: Account[], transactions: Transaction[]): number {
   return accounts.reduce((sum, a) => sum + computeAccountBalance(a, transactions), 0);
+}
+
+/**
+ * Saldo disponível: só o dinheiro de fato (exclui cartões de crédito). Um gasto
+ * no cartão não reduz o disponível — só o pagamento da fatura (transfer) reduz.
+ */
+export function computeAvailableBalance(accounts: Account[], transactions: Transaction[]): number {
+  return accounts
+    .filter((a) => a.type !== 'credit')
+    .reduce((sum, a) => sum + computeAccountBalance(a, transactions), 0);
+}
+
+/**
+ * Saldo devedor dos empréstimos ativos (centavos): parcelas restantes × valor.
+ * As parcelas já pagas viraram despesas e já reduziram o saldo da conta; aqui
+ * fica a dívida ainda não lançada, que deve ser abatida do patrimônio.
+ */
+export function loansOutstanding(loans: Loan[]): number {
+  return loans
+    .filter((l) => l.status === 'active')
+    .reduce(
+      (sum, l) => sum + l.installmentAmount * Math.max(0, l.installmentsTotal - l.installmentsPaid),
+      0,
+    );
 }
 
 export function summarizeByMonth(

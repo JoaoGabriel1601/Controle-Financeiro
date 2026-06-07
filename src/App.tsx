@@ -21,6 +21,8 @@ const CategoriesPage = lazy(() =>
 const AccountsPage = lazy(() =>
   import('./pages/Accounts').then((m) => ({ default: m.AccountsPage })),
 );
+const CardsPage = lazy(() => import('./pages/Cards').then((m) => ({ default: m.CardsPage })));
+const LoansPage = lazy(() => import('./pages/Loans').then((m) => ({ default: m.LoansPage })));
 const BudgetsPage = lazy(() => import('./pages/Budgets').then((m) => ({ default: m.BudgetsPage })));
 const RecurringPage = lazy(() =>
   import('./pages/Recurring').then((m) => ({ default: m.RecurringPage })),
@@ -63,6 +65,8 @@ export function App() {
                 <Route path="/transacoes" element={<TransactionsPage />} />
                 <Route path="/categorias" element={<CategoriesPage />} />
                 <Route path="/contas" element={<AccountsPage />} />
+                <Route path="/cartoes" element={<CardsPage />} />
+                <Route path="/emprestimos" element={<LoansPage />} />
                 <Route path="/orcamentos" element={<BudgetsPage />} />
                 <Route path="/recorrentes" element={<RecurringPage />} />
                 <Route path="/relatorios" element={<ReportsPage />} />

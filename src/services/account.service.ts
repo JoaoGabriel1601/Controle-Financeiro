@@ -3,7 +3,23 @@ import type { Account, AccountInput } from '../types';
 
 const TABLE = 'accounts';
 // Alias das colunas snake_case -> camelCase para casar com os tipos do app.
-const SELECT = 'id, name, type, balance, currency, createdAt:created_at';
+const SELECT =
+  'id, name, type, balance, currency, createdAt:created_at, creditLimit:credit_limit, closingDay:closing_day, dueDay:due_day, paymentAccountId:payment_account_id';
+
+/** Mapeia o input (camelCase) para a linha do Postgres (snake_case). */
+function toRow(data: Partial<AccountInput>): Record<string, unknown> {
+  const row: Record<string, unknown> = {};
+  if (data.name !== undefined) row.name = data.name;
+  if (data.type !== undefined) row.type = data.type;
+  if (data.balance !== undefined) row.balance = data.balance;
+  if (data.currency !== undefined) row.currency = data.currency;
+  // Campos de cartão: só fazem sentido para type='credit'; demais ficam null.
+  if (data.creditLimit !== undefined) row.credit_limit = data.creditLimit ?? null;
+  if (data.closingDay !== undefined) row.closing_day = data.closingDay ?? null;
+  if (data.dueDay !== undefined) row.due_day = data.dueDay ?? null;
+  if (data.paymentAccountId !== undefined) row.payment_account_id = data.paymentAccountId || null;
+  return row;
+}
 
 export const accountService = {
   subscribe(
@@ -38,17 +54,12 @@ export const accountService = {
   },
 
   async create(data: AccountInput) {
-    const { error } = await supabase.from(TABLE).insert({
-      name: data.name,
-      type: data.type,
-      balance: data.balance,
-      currency: data.currency,
-    });
+    const { error } = await supabase.from(TABLE).insert(toRow(data));
     if (error) throw error;
   },
 
   async update(id: string, data: Partial<AccountInput>) {
-    const { error } = await supabase.from(TABLE).update(data).eq('id', id);
+    const { error } = await supabase.from(TABLE).update(toRow(data)).eq('id', id);
     if (error) throw error;
   },
 

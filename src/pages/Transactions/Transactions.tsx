@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { addMonths } from 'date-fns';
 import { Plus, Pencil, Trash2, ArrowLeftRight, Search, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -12,8 +13,19 @@ import { useDataStore } from '../../stores/dataStore';
 import { transactionService } from '../../services/transaction.service';
 import { dateInputValue, formatCurrency, formatDate, parseDateInput, toJsDate } from '../../utils/format';
 import { centsToReais, parseMoneyInput, reaisToCents } from '../../utils/money';
-import type { Transaction, TransactionType } from '../../types';
+import type { PaymentMethod, Transaction, TransactionType } from '../../types';
 import styles from './Transactions.module.css';
+
+const METHOD_LABELS: Record<PaymentMethod, string> = {
+  pix: 'PIX',
+  debit: 'Débito',
+  cash: 'Dinheiro',
+  boleto: 'Boleto',
+  credit: 'Crédito',
+};
+
+// Métodos válidos quando a despesa sai de uma conta de dinheiro (crédito é só no cartão).
+const CASH_METHODS: PaymentMethod[] = ['pix', 'debit', 'cash', 'boleto'];
 
 interface FormState {
   type: TransactionType;
@@ -23,6 +35,8 @@ interface FormState {
   accountId: string;
   toAccountId: string;
   date: string;
+  installments: string;
+  paymentMethod: PaymentMethod;
 }
 
 const emptyForm = (categoryId: string, accountId: string, toAccountId = ''): FormState => ({
@@ -33,6 +47,8 @@ const emptyForm = (categoryId: string, accountId: string, toAccountId = ''): For
   accountId,
   toAccountId,
   date: dateInputValue(new Date()),
+  installments: '1',
+  paymentMethod: 'pix',
 });
 
 export function TransactionsPage() {
@@ -51,6 +67,7 @@ export function TransactionsPage() {
   const [filterType, setFilterType] = useState<'all' | TransactionType>('all');
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterAccount, setFilterAccount] = useState<string>('all');
+  const [filterMethod, setFilterMethod] = useState<'all' | PaymentMethod>('all');
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -58,10 +75,11 @@ export function TransactionsPage() {
       if (filterType !== 'all' && tx.type !== filterType) return false;
       if (filterCategory !== 'all' && tx.categoryId !== filterCategory) return false;
       if (filterAccount !== 'all' && tx.accountId !== filterAccount) return false;
+      if (filterMethod !== 'all' && tx.paymentMethod !== filterMethod) return false;
       if (term && !tx.description.toLowerCase().includes(term)) return false;
       return true;
     });
-  }, [transactions, search, filterType, filterCategory, filterAccount]);
+  }, [transactions, search, filterType, filterCategory, filterAccount, filterMethod]);
 
   const openNew = () => {
     setEditing(null);
@@ -79,9 +97,35 @@ export function TransactionsPage() {
       accountId: tx.accountId,
       toAccountId: tx.toAccountId ?? '',
       date: dateInputValue(tx.date),
+      installments: '1',
+      paymentMethod: tx.paymentMethod ?? 'pix',
     });
     setModalOpen(true);
   };
+
+  const selectedAccount = accounts.find((a) => a.id === form.accountId);
+  const isCreditAccount = selectedAccount?.type === 'credit';
+  // Parcelamento só faz sentido para uma compra nova no cartão de crédito.
+  const canInstall = !editing && form.type === 'expense' && isCreditAccount;
+
+  // Método efetivo: no cartão é sempre "crédito"; em conta de dinheiro, a escolha
+  // do usuário (nunca "crédito"). Só despesas têm método.
+  const effectiveMethod: PaymentMethod | null =
+    form.type === 'expense'
+      ? isCreditAccount
+        ? 'credit'
+        : form.paymentMethod === 'credit'
+          ? 'pix'
+          : form.paymentMethod
+      : null;
+
+  const installmentPreview = (() => {
+    if (!canInstall) return undefined;
+    const n = Math.max(1, Math.min(60, Math.trunc(Number(form.installments)) || 1));
+    const cents = reaisToCents(parseMoneyInput(form.amount));
+    if (!cents || n <= 1) return undefined;
+    return `${n}× de aprox. ${formatCurrency(Math.floor(cents / n))}`;
+  })();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,8 +143,40 @@ export function TransactionsPage() {
       if (!form.accountId) return toast.error('Selecione uma conta');
     }
 
+    const installments = canInstall
+      ? Math.max(1, Math.min(60, Math.trunc(Number(form.installments)) || 1))
+      : 1;
+
     setSubmitting(true);
     try {
+      // Compra parcelada no cartão: materializa N transações, uma por mês,
+      // compartilhando o mesmo purchase_group_id.
+      if (installments > 1) {
+        const groupId = crypto.randomUUID();
+        const purchaseDate = parseDateInput(form.date);
+        const per = Math.floor(amount / installments);
+        const remainder = amount - per * installments;
+        const description = form.description.trim();
+        await transactionService.createMany(
+          Array.from({ length: installments }, (_, i) => ({
+            type: 'expense' as const,
+            // O resto dos centavos vai na primeira parcela.
+            amount: i === 0 ? per + remainder : per,
+            description: `${description} (${i + 1}/${installments})`,
+            categoryId: form.categoryId,
+            accountId: form.accountId,
+            date: addMonths(purchaseDate, i),
+            paymentMethod: 'credit' as const,
+            installmentNo: i + 1,
+            installmentTotal: installments,
+            purchaseGroupId: groupId,
+          })),
+        );
+        toast.success(`Compra parcelada em ${installments}× registrada`);
+        setModalOpen(false);
+        return;
+      }
+
       const base = {
         type: form.type,
         amount,
@@ -108,6 +184,7 @@ export function TransactionsPage() {
         categoryId: isTransfer ? '' : form.categoryId,
         accountId: form.accountId,
         date: parseDateInput(form.date),
+        paymentMethod: effectiveMethod,
       };
       const payload = isTransfer ? { ...base, toAccountId: form.toAccountId } : base;
       if (editing) {
@@ -206,6 +283,17 @@ export function TransactionsPage() {
               </option>
             ))}
           </Select>
+          <Select
+            value={filterMethod}
+            onChange={(e) => setFilterMethod(e.target.value as 'all' | PaymentMethod)}
+          >
+            <option value="all">Todos os métodos</option>
+            {(Object.keys(METHOD_LABELS) as PaymentMethod[]).map((m) => (
+              <option key={m} value={m}>
+                {METHOD_LABELS[m]}
+              </option>
+            ))}
+          </Select>
         </div>
       </Card>
 
@@ -264,6 +352,14 @@ export function TransactionsPage() {
                             <>
                               <Badge tone="neutral">{cat?.name ?? 'Sem categoria'}</Badge>
                               <span>{acc?.name ?? '—'}</span>
+                              {tx.paymentMethod && (
+                                <Badge tone="primary">{METHOD_LABELS[tx.paymentMethod]}</Badge>
+                              )}
+                              {tx.installmentTotal && tx.installmentTotal > 1 && (
+                                <Badge tone="info">
+                                  {tx.installmentNo}/{tx.installmentTotal}
+                                </Badge>
+                              )}
                             </>
                           )}
                         </div>
@@ -392,6 +488,27 @@ export function TransactionsPage() {
             ))}
           </Select>
 
+          {form.type === 'expense' &&
+            (isCreditAccount ? (
+              <Select label="Método de pagamento" value="credit" disabled>
+                <option value="credit">Crédito (cartão)</option>
+              </Select>
+            ) : (
+              <Select
+                label="Método de pagamento"
+                value={form.paymentMethod}
+                onChange={(e) =>
+                  setForm({ ...form, paymentMethod: e.target.value as PaymentMethod })
+                }
+              >
+                {CASH_METHODS.map((m) => (
+                  <option key={m} value={m}>
+                    {METHOD_LABELS[m]}
+                  </option>
+                ))}
+              </Select>
+            ))}
+
           {form.type === 'transfer' && (
             <Select
               label="Conta de destino"
@@ -405,6 +522,18 @@ export function TransactionsPage() {
                 </option>
               ))}
             </Select>
+          )}
+
+          {canInstall && (
+            <Input
+              type="number"
+              min={1}
+              max={60}
+              label="Parcelas"
+              value={form.installments}
+              onChange={(e) => setForm({ ...form, installments: e.target.value })}
+              hint={installmentPreview ?? 'Compra à vista (1×) ou parcele no cartão.'}
+            />
           )}
         </form>
       </Modal>

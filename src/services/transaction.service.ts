@@ -1,9 +1,9 @@
 import { supabase } from './supabase';
-import type { Transaction, TransactionType } from '../types';
+import type { PaymentMethod, Transaction, TransactionType } from '../types';
 
 const TABLE = 'transactions';
 const SELECT =
-  'id, accountId:account_id, toAccountId:to_account_id, categoryId:category_id, type, amount, description, date, createdAt:created_at';
+  'id, accountId:account_id, toAccountId:to_account_id, categoryId:category_id, type, amount, description, date, createdAt:created_at, paymentMethod:payment_method, installmentNo:installment_no, installmentTotal:installment_total, purchaseGroupId:purchase_group_id, paidCompetencia:paid_competencia, loanId:loan_id';
 
 export type TransactionWrite = {
   type: TransactionType;
@@ -13,6 +13,17 @@ export type TransactionWrite = {
   accountId: string;
   toAccountId?: string;
   date: Date | string;
+  /** Método de pagamento (só para despesas). */
+  paymentMethod?: PaymentMethod | null;
+  /** Parcela (ex.: 3 em 3/12). */
+  installmentNo?: number | null;
+  installmentTotal?: number | null;
+  /** Agrupa as N parcelas de uma mesma compra. */
+  purchaseGroupId?: string | null;
+  /** Competência `YYYY-MM` quitada por um pagamento de fatura. */
+  paidCompetencia?: string | null;
+  /** Empréstimo que originou a parcela (quando lançada manualmente). */
+  loanId?: string | null;
 };
 
 /** Mapeia o input (camelCase) para a linha do Postgres (snake_case). */
@@ -28,6 +39,12 @@ function toRow(data: Partial<TransactionWrite>): Record<string, unknown> {
   if (data.date !== undefined) {
     row.date = (data.date instanceof Date ? data.date : new Date(data.date)).toISOString();
   }
+  if (data.paymentMethod !== undefined) row.payment_method = data.paymentMethod || null;
+  if (data.installmentNo !== undefined) row.installment_no = data.installmentNo ?? null;
+  if (data.installmentTotal !== undefined) row.installment_total = data.installmentTotal ?? null;
+  if (data.purchaseGroupId !== undefined) row.purchase_group_id = data.purchaseGroupId || null;
+  if (data.paidCompetencia !== undefined) row.paid_competencia = data.paidCompetencia || null;
+  if (data.loanId !== undefined) row.loan_id = data.loanId || null;
   return row;
 }
 
@@ -65,6 +82,13 @@ export const transactionService = {
 
   async create(data: TransactionWrite) {
     const { error } = await supabase.from(TABLE).insert(toRow(data));
+    if (error) throw error;
+  },
+
+  /** Insere várias transações de uma vez (ex.: as N parcelas de uma compra). */
+  async createMany(rows: TransactionWrite[]) {
+    if (rows.length === 0) return;
+    const { error } = await supabase.from(TABLE).insert(rows.map(toRow));
     if (error) throw error;
   },
 

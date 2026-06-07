@@ -6,6 +6,7 @@ import { categoryService } from '../services/category.service';
 import { transactionService } from '../services/transaction.service';
 import { budgetService } from '../services/budget.service';
 import { recurringService } from '../services/recurring.service';
+import { loanService } from '../services/loan.service';
 import { toast } from '../components/ui/toastStore';
 
 export function useDataSync() {
@@ -15,6 +16,7 @@ export function useDataSync() {
   const setTransactions = useDataStore((s) => s.setTransactions);
   const setBudgets = useDataStore((s) => s.setBudgets);
   const setRecurring = useDataStore((s) => s.setRecurring);
+  const setLoans = useDataStore((s) => s.setLoans);
   const reset = useDataStore((s) => s.reset);
 
   const uid = user?.id ?? null;
@@ -37,6 +39,7 @@ export function useDataSync() {
     const unsubTransactions = transactionService.subscribe(setTransactions, onError);
     const unsubBudgets = budgetService.subscribe(setBudgets, onError);
     const unsubRecurring = recurringService.subscribe(setRecurring, onError);
+    const unsubLoans = loanService.subscribe(setLoans, onError);
 
     // Gera os lançamentos das recorrências vencidas (catch-up) ao abrir o app.
     // As inserções chegam de volta pelas assinaturas em tempo real.
@@ -51,12 +54,25 @@ export function useDataSync() {
       })
       .catch((err) => console.warn('[recurringService.processDue]', err));
 
+    // Idem para as parcelas de empréstimo vencidas.
+    loanService
+      .processDue()
+      .then((count) => {
+        if (count > 0) {
+          toast.success(
+            `${count} ${count === 1 ? 'parcela de empréstimo gerada' : 'parcelas de empréstimo geradas'}`,
+          );
+        }
+      })
+      .catch((err) => console.warn('[loanService.processDue]', err));
+
     return () => {
       unsubAccounts();
       unsubCategories();
       unsubTransactions();
       unsubBudgets();
       unsubRecurring();
+      unsubLoans();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uid]);

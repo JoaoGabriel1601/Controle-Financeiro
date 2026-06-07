@@ -5,6 +5,8 @@ import {
   TrendingDown,
   Wallet,
   PiggyBank,
+  Landmark,
+  CreditCard,
   ArrowUpRight,
   ArrowDownLeft,
   ArrowRight,
@@ -19,11 +21,14 @@ import { useAuthStore } from '../../stores/authStore';
 import { formatCurrency, formatDate, parseDateInput } from '../../utils/format';
 import {
   breakdownByCategory,
+  computeAvailableBalance,
   computeTotalBalance,
+  loansOutstanding,
   rollingAverage,
   summarizeByMonth,
   totalForMonth,
 } from '../../utils/stats';
+import { buildInvoices, competenciaLabel, currentCompetencia } from '../../utils/invoices';
 import { IncomeExpenseLineChart } from '../../components/charts/IncomeExpenseLineChart';
 import { CategoryPieChart } from '../../components/charts/CategoryPieChart';
 import { MonthlyBarChart } from '../../components/charts/MonthlyBarChart';
@@ -43,6 +48,7 @@ export function Dashboard() {
   const categories = useDataStore((s) => s.categories);
   const accounts = useDataStore((s) => s.accounts);
   const recurring = useDataStore((s) => s.recurring);
+  const loans = useDataStore((s) => s.loans);
   const [monthsBack, setMonthsBack] = useState<MonthWindow>(6);
 
   const monthIncome = useMemo(() => totalForMonth(transactions, 'income'), [transactions]);
@@ -52,6 +58,28 @@ export function Dashboard() {
   const totalBalance = useMemo(
     () => computeTotalBalance(accounts, transactions),
     [accounts, transactions],
+  );
+  const availableBalance = useMemo(
+    () => computeAvailableBalance(accounts, transactions),
+    [accounts, transactions],
+  );
+  // Patrimônio = contas (cartão já entra negativo) − dívida restante de empréstimos.
+  const netWorth = useMemo(
+    () => totalBalance - loansOutstanding(loans),
+    [totalBalance, loans],
+  );
+
+  const activeLoans = useMemo(() => loans.filter((l) => l.status === 'active'), [loans]);
+
+  const creditCards = useMemo(() => accounts.filter((a) => a.type === 'credit'), [accounts]);
+  const cardInvoices = useMemo(
+    () =>
+      creditCards.map((card) => {
+        const comp = currentCompetencia(card);
+        const invoice = buildInvoices(card, transactions).find((i) => i.competencia === comp);
+        return { card, competencia: comp, total: invoice?.total ?? 0 };
+      }),
+    [creditCards, transactions],
   );
 
   const monthlySummary = useMemo(() => summarizeByMonth(transactions, monthsBack), [transactions, monthsBack]);
@@ -118,9 +146,15 @@ export function Dashboard() {
       <div className={styles.cards}>
         <SummaryCard
           icon={<Wallet size={20} />}
-          label="Saldo total"
-          value={formatCurrency(totalBalance)}
+          label="Saldo disponível"
+          value={formatCurrency(availableBalance)}
           tone="primary"
+        />
+        <SummaryCard
+          icon={<Landmark size={20} />}
+          label="Patrimônio"
+          value={formatCurrency(netWorth)}
+          tone={netWorth >= 0 ? 'success' : 'danger'}
         />
         <SummaryCard
           icon={<ArrowDownLeft size={20} />}
@@ -141,6 +175,74 @@ export function Dashboard() {
           tone={monthBalance >= 0 ? 'success' : 'danger'}
         />
       </div>
+
+      {cardInvoices.length > 0 && (
+        <Card
+          title="Faturas dos cartões"
+          subtitle="Fatura em aberto neste ciclo"
+          action={
+            <Link to="/cartoes">
+              <Button variant="ghost" size="sm" rightIcon={<ArrowRight size={14} />}>
+                Ver cartões
+              </Button>
+            </Link>
+          }
+        >
+          <div className={styles.recent}>
+            {cardInvoices.map(({ card, competencia, total }) => (
+              <div key={card.id} className={styles.recentItem}>
+                <span className={styles.recentIcon} style={{ background: 'var(--primary-soft)' }}>
+                  <CreditCard size={16} />
+                </span>
+                <div className={styles.recentBody}>
+                  <strong>{card.name}</strong>
+                  <span>Fatura {competenciaLabel(competencia)}</span>
+                </div>
+                <span className={styles.recentAmount}>{formatCurrency(total)}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {activeLoans.length > 0 && (
+        <Card
+          title="Empréstimos"
+          subtitle="Parcelas pendentes"
+          action={
+            <Link to="/emprestimos">
+              <Button variant="ghost" size="sm" rightIcon={<ArrowRight size={14} />}>
+                Ver empréstimos
+              </Button>
+            </Link>
+          }
+        >
+          <div className={styles.recent}>
+            {activeLoans.map((loan) => {
+              const remaining = Math.max(0, loan.installmentsTotal - loan.installmentsPaid);
+              return (
+                <div key={loan.id} className={styles.recentItem}>
+                  <span className={styles.recentIcon} style={{ background: 'var(--primary-soft)' }}>
+                    <Landmark size={16} />
+                  </span>
+                  <div className={styles.recentBody}>
+                    <strong>{loan.name}</strong>
+                    <span>
+                      {loan.installmentsPaid}/{loan.installmentsTotal} ·{' '}
+                      {loan.nextDueDate
+                        ? `próxima ${formatDate(parseDateInput(loan.nextDueDate))}`
+                        : '—'}
+                    </span>
+                  </div>
+                  <span className={styles.recentAmount}>
+                    {formatCurrency(remaining * loan.installmentAmount)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       <Card
         title="Receita vs Despesa"
