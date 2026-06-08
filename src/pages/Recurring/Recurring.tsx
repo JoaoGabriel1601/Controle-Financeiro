@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Input, Select } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
+import { AccountOptions } from '../../components/ui/AccountOptions';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { toast } from '../../components/ui/toastStore';
@@ -332,11 +333,7 @@ export function RecurringPage() {
             onChange={(e) => setForm({ ...form, accountId: e.target.value })}
           >
             <option value="">Selecione...</option>
-            {accounts.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
+            <AccountOptions accounts={accounts} />
           </Select>
 
           <label className={styles.checkboxRow}>
