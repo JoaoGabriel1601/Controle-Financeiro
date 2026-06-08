@@ -89,6 +89,7 @@ export function TransactionsPage() {
   const [filterType, setFilterType] = useState<'all' | TransactionType>('all');
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterAccount, setFilterAccount] = useState<string>('all');
+  const [filterCard, setFilterCard] = useState<string>('all');
   const [filterMethod, setFilterMethod] = useState<'all' | PaymentMethod>('all');
 
   const filtered = useMemo(() => {
@@ -97,11 +98,12 @@ export function TransactionsPage() {
       if (filterType !== 'all' && tx.type !== filterType) return false;
       if (filterCategory !== 'all' && tx.categoryId !== filterCategory) return false;
       if (filterAccount !== 'all' && tx.accountId !== filterAccount) return false;
+      if (filterCard !== 'all' && tx.accountId !== filterCard) return false;
       if (filterMethod !== 'all' && tx.paymentMethod !== filterMethod) return false;
       if (term && !tx.description.toLowerCase().includes(term)) return false;
       return true;
     });
-  }, [transactions, search, filterType, filterCategory, filterAccount, filterMethod]);
+  }, [transactions, search, filterType, filterCategory, filterAccount, filterCard, filterMethod]);
 
   const openNew = () => {
     setEditing(null);
@@ -307,10 +309,36 @@ export function TransactionsPage() {
               </option>
             ))}
           </Select>
-          <Select value={filterAccount} onChange={(e) => setFilterAccount(e.target.value)}>
+          <Select
+            value={filterAccount}
+            onChange={(e) => {
+              setFilterAccount(e.target.value);
+              if (e.target.value !== 'all') setFilterCard('all');
+            }}
+          >
             <option value="all">Todas as contas</option>
-            <AccountOptions accounts={accounts} />
+            {cashAccounts.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
           </Select>
+          {creditCards.length > 0 && (
+            <Select
+              value={filterCard}
+              onChange={(e) => {
+                setFilterCard(e.target.value);
+                if (e.target.value !== 'all') setFilterAccount('all');
+              }}
+            >
+              <option value="all">Todos os cartões</option>
+              {creditCards.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </Select>
+          )}
           <Select
             value={filterMethod}
             onChange={(e) => setFilterMethod(e.target.value as 'all' | PaymentMethod)}
