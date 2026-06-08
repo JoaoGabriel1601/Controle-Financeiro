@@ -6,12 +6,14 @@ import { Modal } from '../../components/ui/Modal';
 import { Input, Select } from '../../components/ui/Input';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { BrandLogo } from '../../components/ui/BrandLogo';
 import { toast } from '../../components/ui/toastStore';
 import { useDataStore } from '../../stores/dataStore';
 import { accountService } from '../../services/account.service';
 import { formatCurrency } from '../../utils/format';
 import { centsToReais, parseMoneyInput, reaisToCents } from '../../utils/money';
 import { computeAccountBalance, computeAvailableBalance } from '../../utils/stats';
+import { INSTITUTIONS } from '../../utils/brands';
 import type { Account, AccountInput, AccountType } from '../../types';
 import styles from './Accounts.module.css';
 
@@ -35,6 +37,7 @@ interface FormState {
   type: CashAccountType;
   balance: string;
   currency: string;
+  institution: string;
 }
 
 const EMPTY: FormState = {
@@ -42,6 +45,7 @@ const EMPTY: FormState = {
   type: 'checking',
   balance: '',
   currency: 'BRL',
+  institution: '',
 };
 
 export function AccountsPage() {
@@ -91,6 +95,7 @@ export function AccountsPage() {
       type: (account.type === 'credit' ? 'checking' : account.type) as CashAccountType,
       balance: String(centsToReais(account.balance)),
       currency: account.currency,
+      institution: account.institution ?? '',
     });
     setModalOpen(true);
   };
@@ -107,6 +112,7 @@ export function AccountsPage() {
         type: form.type,
         currency: form.currency,
         balance: Number.isNaN(parsed) ? 0 : reaisToCents(parsed),
+        institution: form.institution || null,
       };
       if (editing) {
         await accountService.update(editing.id, payload);
@@ -181,7 +187,11 @@ export function AccountsPage() {
             return (
               <div key={account.id} className={styles.card}>
                 <div className={styles.cardHead}>
-                  <span className={styles.cardIcon}>{TYPE_ICONS[type]}</span>
+                  {account.institution ? (
+                    <BrandLogo slug={account.institution} size={38} radius={10} />
+                  ) : (
+                    <span className={styles.cardIcon}>{TYPE_ICONS[type]}</span>
+                  )}
                   <div className={styles.cardActions}>
                     <button onClick={() => openEdit(account)} aria-label="Editar">
                       <Pencil size={14} />
@@ -232,6 +242,17 @@ export function AccountsPage() {
           >
             {(Object.entries(TYPE_LABELS) as [CashAccountType, string][]).map(([value, label]) => (
               <option key={value} value={value}>{label}</option>
+            ))}
+          </Select>
+
+          <Select
+            label="Banco / Fintech"
+            value={form.institution}
+            onChange={(e) => setForm({ ...form, institution: e.target.value })}
+          >
+            <option value="">Nenhum / outro</option>
+            {INSTITUTIONS.map((b) => (
+              <option key={b.slug} value={b.slug}>{b.label}</option>
             ))}
           </Select>
 

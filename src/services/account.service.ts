@@ -4,7 +4,7 @@ import type { Account, AccountInput } from '../types';
 const TABLE = 'accounts';
 // Alias das colunas snake_case -> camelCase para casar com os tipos do app.
 const SELECT =
-  'id, name, type, balance, currency, createdAt:created_at, creditLimit:credit_limit, closingDay:closing_day, dueDay:due_day, paymentAccountId:payment_account_id';
+  'id, name, type, balance, currency, createdAt:created_at, institution, brand, creditLimit:credit_limit, closingDay:closing_day, dueDay:due_day, paymentAccountId:payment_account_id';
 
 /** Mapeia o input (camelCase) para a linha do Postgres (snake_case). */
 function toRow(data: Partial<AccountInput>): Record<string, unknown> {
@@ -13,6 +13,8 @@ function toRow(data: Partial<AccountInput>): Record<string, unknown> {
   if (data.type !== undefined) row.type = data.type;
   if (data.balance !== undefined) row.balance = data.balance;
   if (data.currency !== undefined) row.currency = data.currency;
+  if (data.institution !== undefined) row.institution = data.institution || null;
+  if (data.brand !== undefined) row.brand = data.brand || null;
   // Campos de cartão: só fazem sentido para type='credit'; demais ficam null.
   if (data.creditLimit !== undefined) row.credit_limit = data.creditLimit ?? null;
   if (data.closingDay !== undefined) row.closing_day = data.closingDay ?? null;

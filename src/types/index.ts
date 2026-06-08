@@ -21,6 +21,10 @@ export interface Account {
   currency: string;
   /** Data ISO (timestamptz). */
   createdAt: string;
+  /** Banco/fintech (slug do registro de marcas), para exibir a logo. */
+  institution?: string | null;
+  /** Bandeira do cartão (slug: visa/mastercard/...), só para cartões. */
+  brand?: string | null;
   // ----- Apenas cartão de crédito (type === 'credit') -----
   /** Limite total do cartão em centavos. */
   creditLimit?: number | null;

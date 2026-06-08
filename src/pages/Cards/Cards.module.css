@@ -70,6 +70,12 @@
   color: var(--text-muted);
 }
 
+.panelMeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .panelActions {
   display: flex;
   gap: 4px;

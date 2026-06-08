@@ -8,6 +8,8 @@ import { Input, Select } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { BrandLogo } from '../../components/ui/BrandLogo';
+import { CARD_BRANDS, INSTITUTIONS } from '../../utils/brands';
 import { toast } from '../../components/ui/toastStore';
 import { useDataStore } from '../../stores/dataStore';
 import { transactionService } from '../../services/transaction.service';
@@ -183,12 +185,19 @@ function CardPanel({ card, transactions, onPay, onEdit, onDelete }: CardPanelPro
   return (
     <Card className={styles.panel}>
       <div className={styles.panelHead}>
-        <span className={styles.panelIcon}>
-          <CreditCard size={18} />
-        </span>
+        {card.brand ? (
+          <BrandLogo slug={card.brand} size={38} radius={10} />
+        ) : (
+          <span className={styles.panelIcon}>
+            <CreditCard size={18} />
+          </span>
+        )}
         <div className={styles.panelTitle}>
           <strong>{card.name}</strong>
-          {card.dueDay != null && <span>Vence dia {card.dueDay}</span>}
+          <span className={styles.panelMeta}>
+            {card.institution && <BrandLogo slug={card.institution} size={16} radius={4} />}
+            {card.dueDay != null && <span>Vence dia {card.dueDay}</span>}
+          </span>
         </div>
         <div className={styles.panelActions}>
           <button onClick={onEdit} aria-label="Editar cartão">
@@ -323,6 +332,8 @@ function CardModal({ card, cashAccounts, onClose }: CardModalProps) {
   );
   const [closingDay, setClosingDay] = useState(card?.closingDay != null ? String(card.closingDay) : '');
   const [dueDay, setDueDay] = useState(card?.dueDay != null ? String(card.dueDay) : '');
+  const [brand, setBrand] = useState(card?.brand ?? '');
+  const [institution, setInstitution] = useState(card?.institution ?? '');
   const [paymentAccountId, setPaymentAccountId] = useState(card?.paymentAccountId ?? '');
   // Saldo do cartão é guardado negativo (dívida); exibe o valor positivo.
   const [openingBalance, setOpeningBalance] = useState(
@@ -355,6 +366,8 @@ function CardModal({ card, cashAccounts, onClose }: CardModalProps) {
         closingDay: closing,
         dueDay: due,
         paymentAccountId: paymentAccountId || null,
+        brand: brand || null,
+        institution: institution || null,
       };
       if (isEdit) {
         await accountService.update(card.id, payload);
@@ -395,6 +408,24 @@ function CardModal({ card, cashAccounts, onClose }: CardModalProps) {
           onChange={(e) => setName(e.target.value)}
           autoFocus
         />
+        <div className={styles.formRow}>
+          <Select label="Bandeira" value={brand} onChange={(e) => setBrand(e.target.value)}>
+            <option value="">Nenhuma</option>
+            {CARD_BRANDS.map((b) => (
+              <option key={b.slug} value={b.slug}>{b.label}</option>
+            ))}
+          </Select>
+          <Select
+            label="Banco / Fintech"
+            value={institution}
+            onChange={(e) => setInstitution(e.target.value)}
+          >
+            <option value="">Nenhum</option>
+            {INSTITUTIONS.map((b) => (
+              <option key={b.slug} value={b.slug}>{b.label}</option>
+            ))}
+          </Select>
+        </div>
         <Input
           type="text"
           inputMode="decimal"
