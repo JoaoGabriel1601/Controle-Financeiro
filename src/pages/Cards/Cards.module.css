@@ -58,6 +58,8 @@
 .panelTitle {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-width: 0;
 }
 .panelTitle strong {
   font-size: 16px;
@@ -66,6 +68,25 @@
 .panelTitle span {
   font-size: 12px;
   color: var(--text-muted);
+}
+
+.panelActions {
+  display: flex;
+  gap: 4px;
+}
+.panelActions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  color: var(--text-soft);
+  transition: all 0.15s ease;
+}
+.panelActions button:hover {
+  background: var(--bg-card-hover);
+  color: var(--text);
 }
 
 .limitArea {

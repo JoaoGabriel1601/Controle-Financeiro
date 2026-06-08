@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CreditCard, Plus, ChevronDown, CheckCircle2 } from 'lucide-react';
+import { CreditCard, Plus, Pencil, Trash2, ChevronDown, CheckCircle2 } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Input, Select } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { toast } from '../../components/ui/toastStore';
 import { useDataStore } from '../../stores/dataStore';
 import { transactionService } from '../../services/transaction.service';
@@ -36,7 +37,58 @@ export function CardsPage() {
   const cashAccounts = useMemo(() => accounts.filter((a) => a.type !== 'credit'), [accounts]);
 
   const [payTarget, setPayTarget] = useState<PayTarget | null>(null);
-  const [newCardOpen, setNewCardOpen] = useState(false);
+  const [cardModal, setCardModal] = useState<{ card: Account | null } | null>(null);
+  const [deletingCard, setDeletingCard] = useState<Account | null>(null);
+  const [removing, setRemoving] = useState(false);
+
+  const requestDeleteCard = (card: Account) => {
+    const linked = transactions.filter(
+      (t) => t.accountId === card.id || t.toAccountId === card.id,
+    ).length;
+    if (linked > 0) {
+      toast.error(
+        `"${card.name}" tem ${linked} ${linked === 1 ? 'transação vinculada' : 'transações vinculadas'}. Remova-as antes de excluir.`,
+      );
+      return;
+    }
+    setDeletingCard(card);
+  };
+
+  const handleDeleteCard = async () => {
+    if (!deletingCard) return;
+    setRemoving(true);
+    try {
+      await accountService.remove(deletingCard.id);
+      toast.success('Cartão removido');
+      setDeletingCard(null);
+    } catch {
+      toast.error('Não foi possível remover');
+    } finally {
+      setRemoving(false);
+    }
+  };
+
+  const cardModals = (
+    <>
+      {cardModal && (
+        <CardModal
+          card={cardModal.card}
+          cashAccounts={cashAccounts}
+          onClose={() => setCardModal(null)}
+        />
+      )}
+      <ConfirmDialog
+        open={!!deletingCard}
+        title="Remover cartão"
+        description={`Tem certeza que deseja remover "${deletingCard?.name}"?`}
+        confirmLabel="Remover"
+        destructive
+        loading={removing}
+        onConfirm={handleDeleteCard}
+        onCancel={() => setDeletingCard(null)}
+      />
+    </>
+  );
 
   if (creditCards.length === 0) {
     return (
@@ -46,7 +98,7 @@ export function CardsPage() {
             <h1 className={styles.title}>Cartões</h1>
             <p className={styles.subtitle}>Faturas e limites dos seus cartões de crédito.</p>
           </div>
-          <Button leftIcon={<Plus size={16} />} onClick={() => setNewCardOpen(true)}>
+          <Button leftIcon={<Plus size={16} />} onClick={() => setCardModal({ card: null })}>
             Novo cartão
           </Button>
         </header>
@@ -56,16 +108,14 @@ export function CardsPage() {
             title="Nenhum cartão cadastrado"
             description="Cadastre um cartão de crédito para acompanhar faturas e limite."
             action={
-              <Button leftIcon={<Plus size={16} />} onClick={() => setNewCardOpen(true)}>
+              <Button leftIcon={<Plus size={16} />} onClick={() => setCardModal({ card: null })}>
                 Cadastrar cartão
               </Button>
             }
           />
         </Card>
 
-        {newCardOpen && (
-          <NewCardModal cashAccounts={cashAccounts} onClose={() => setNewCardOpen(false)} />
-        )}
+        {cardModals}
       </div>
     );
   }
@@ -77,7 +127,7 @@ export function CardsPage() {
           <h1 className={styles.title}>Cartões</h1>
           <p className={styles.subtitle}>Faturas e limites dos seus cartões de crédito.</p>
         </div>
-        <Button leftIcon={<Plus size={16} />} onClick={() => setNewCardOpen(true)}>
+        <Button leftIcon={<Plus size={16} />} onClick={() => setCardModal({ card: null })}>
           Novo cartão
         </Button>
       </header>
@@ -89,6 +139,8 @@ export function CardsPage() {
             card={card}
             transactions={transactions}
             onPay={(invoice) => setPayTarget({ card, invoice })}
+            onEdit={() => setCardModal({ card })}
+            onDelete={() => requestDeleteCard(card)}
           />
         ))}
       </div>
@@ -102,9 +154,7 @@ export function CardsPage() {
         />
       )}
 
-      {newCardOpen && (
-        <NewCardModal cashAccounts={cashAccounts} onClose={() => setNewCardOpen(false)} />
-      )}
+      {cardModals}
     </div>
   );
 }
@@ -113,9 +163,11 @@ interface CardPanelProps {
   card: Account;
   transactions: Transaction[];
   onPay: (invoice: Invoice) => void;
+  onEdit: () => void;
+  onDelete: () => void;
 }
 
-function CardPanel({ card, transactions, onPay }: CardPanelProps) {
+function CardPanel({ card, transactions, onPay, onEdit, onDelete }: CardPanelProps) {
   const [showHistory, setShowHistory] = useState(false);
   const invoices = useMemo(() => buildInvoices(card, transactions), [card, transactions]);
   const currentComp = currentCompetencia(card);
@@ -137,6 +189,14 @@ function CardPanel({ card, transactions, onPay }: CardPanelProps) {
         <div className={styles.panelTitle}>
           <strong>{card.name}</strong>
           {card.dueDay != null && <span>Vence dia {card.dueDay}</span>}
+        </div>
+        <div className={styles.panelActions}>
+          <button onClick={onEdit} aria-label="Editar cartão">
+            <Pencil size={14} />
+          </button>
+          <button onClick={onDelete} aria-label="Remover cartão">
+            <Trash2 size={14} />
+          </button>
         </div>
       </div>
 
@@ -247,19 +307,27 @@ function InvoiceBlock({ invoice, onPay }: InvoiceBlockProps) {
   );
 }
 
-interface NewCardModalProps {
+interface CardModalProps {
+  /** Cartão sendo editado, ou null para cadastro. */
+  card: Account | null;
   cashAccounts: Account[];
   onClose: () => void;
 }
 
-/** Cadastro de cartão de crédito: cria uma conta do tipo 'credit'. */
-function NewCardModal({ cashAccounts, onClose }: NewCardModalProps) {
-  const [name, setName] = useState('');
-  const [creditLimit, setCreditLimit] = useState('');
-  const [closingDay, setClosingDay] = useState('');
-  const [dueDay, setDueDay] = useState('');
-  const [paymentAccountId, setPaymentAccountId] = useState('');
-  const [openingBalance, setOpeningBalance] = useState('');
+/** Cadastra ou edita um cartão de crédito (conta do tipo 'credit'). */
+function CardModal({ card, cashAccounts, onClose }: CardModalProps) {
+  const isEdit = !!card;
+  const [name, setName] = useState(card?.name ?? '');
+  const [creditLimit, setCreditLimit] = useState(
+    card?.creditLimit != null ? String(centsToReais(card.creditLimit)) : '',
+  );
+  const [closingDay, setClosingDay] = useState(card?.closingDay != null ? String(card.closingDay) : '');
+  const [dueDay, setDueDay] = useState(card?.dueDay != null ? String(card.dueDay) : '');
+  const [paymentAccountId, setPaymentAccountId] = useState(card?.paymentAccountId ?? '');
+  // Saldo do cartão é guardado negativo (dívida); exibe o valor positivo.
+  const [openingBalance, setOpeningBalance] = useState(
+    card ? String(centsToReais(-card.balance)) : '',
+  );
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -288,11 +356,16 @@ function NewCardModal({ cashAccounts, onClose }: NewCardModalProps) {
         dueDay: due,
         paymentAccountId: paymentAccountId || null,
       };
-      await accountService.create(payload);
-      toast.success('Cartão cadastrado');
+      if (isEdit) {
+        await accountService.update(card.id, payload);
+        toast.success('Cartão atualizado');
+      } else {
+        await accountService.create(payload);
+        toast.success('Cartão cadastrado');
+      }
       onClose();
     } catch {
-      toast.error('Não foi possível cadastrar o cartão');
+      toast.error('Não foi possível salvar o cartão');
     } finally {
       setSubmitting(false);
     }
@@ -302,7 +375,7 @@ function NewCardModal({ cashAccounts, onClose }: NewCardModalProps) {
     <Modal
       open
       onClose={onClose}
-      title="Novo cartão"
+      title={isEdit ? 'Editar cartão' : 'Novo cartão'}
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={submitting}>
@@ -365,11 +438,11 @@ function NewCardModal({ cashAccounts, onClose }: NewCardModalProps) {
         <Input
           type="text"
           inputMode="decimal"
-          label="Fatura em aberto inicial"
+          label={isEdit ? 'Saldo inicial da fatura' : 'Fatura em aberto inicial'}
           placeholder="0,00"
           value={openingBalance}
           onChange={(e) => setOpeningBalance(e.target.value)}
-          hint="Deixe 0 se vai lançar os gastos do cartão pelas transações."
+          hint="Saldo de partida do cartão; os gastos lançados nas transações somam a este valor."
         />
       </form>
     </Modal>
