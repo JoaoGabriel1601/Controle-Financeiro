@@ -10,6 +10,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { toast } from '../../components/ui/toastStore';
 import { useDataStore } from '../../stores/dataStore';
 import { transactionService } from '../../services/transaction.service';
+import { accountService } from '../../services/account.service';
 import { formatCurrency, formatDate, dateInputValue, parseDateInput } from '../../utils/format';
 import { centsToReais, parseMoneyInput, reaisToCents } from '../../utils/money';
 import {
@@ -19,7 +20,7 @@ import {
   competenciaLabel,
   currentCompetencia,
 } from '../../utils/invoices';
-import type { Account, Invoice, Transaction } from '../../types';
+import type { Account, AccountInput, Invoice, Transaction } from '../../types';
 import styles from './Cards.module.css';
 
 interface PayTarget {
@@ -35,6 +36,7 @@ export function CardsPage() {
   const cashAccounts = useMemo(() => accounts.filter((a) => a.type !== 'credit'), [accounts]);
 
   const [payTarget, setPayTarget] = useState<PayTarget | null>(null);
+  const [newCardOpen, setNewCardOpen] = useState(false);
 
   if (creditCards.length === 0) {
     return (
@@ -44,19 +46,26 @@ export function CardsPage() {
             <h1 className={styles.title}>Cartões</h1>
             <p className={styles.subtitle}>Faturas e limites dos seus cartões de crédito.</p>
           </div>
+          <Button leftIcon={<Plus size={16} />} onClick={() => setNewCardOpen(true)}>
+            Novo cartão
+          </Button>
         </header>
         <Card>
           <EmptyState
             icon={<CreditCard size={28} />}
             title="Nenhum cartão cadastrado"
-            description="Cadastre uma conta do tipo “Cartão de crédito” para acompanhar faturas e limite."
+            description="Cadastre um cartão de crédito para acompanhar faturas e limite."
             action={
-              <Link to="/contas">
-                <Button leftIcon={<Plus size={16} />}>Cadastrar cartão</Button>
-              </Link>
+              <Button leftIcon={<Plus size={16} />} onClick={() => setNewCardOpen(true)}>
+                Cadastrar cartão
+              </Button>
             }
           />
         </Card>
+
+        {newCardOpen && (
+          <NewCardModal cashAccounts={cashAccounts} onClose={() => setNewCardOpen(false)} />
+        )}
       </div>
     );
   }
@@ -68,6 +77,9 @@ export function CardsPage() {
           <h1 className={styles.title}>Cartões</h1>
           <p className={styles.subtitle}>Faturas e limites dos seus cartões de crédito.</p>
         </div>
+        <Button leftIcon={<Plus size={16} />} onClick={() => setNewCardOpen(true)}>
+          Novo cartão
+        </Button>
       </header>
 
       <div className={styles.grid}>
@@ -88,6 +100,10 @@ export function CardsPage() {
           cashAccounts={cashAccounts}
           onClose={() => setPayTarget(null)}
         />
+      )}
+
+      {newCardOpen && (
+        <NewCardModal cashAccounts={cashAccounts} onClose={() => setNewCardOpen(false)} />
       )}
     </div>
   );
@@ -228,6 +244,135 @@ function InvoiceBlock({ invoice, onPay }: InvoiceBlockProps) {
         ))}
       </div>
     </>
+  );
+}
+
+interface NewCardModalProps {
+  cashAccounts: Account[];
+  onClose: () => void;
+}
+
+/** Cadastro de cartão de crédito: cria uma conta do tipo 'credit'. */
+function NewCardModal({ cashAccounts, onClose }: NewCardModalProps) {
+  const [name, setName] = useState('');
+  const [creditLimit, setCreditLimit] = useState('');
+  const [closingDay, setClosingDay] = useState('');
+  const [dueDay, setDueDay] = useState('');
+  const [paymentAccountId, setPaymentAccountId] = useState('');
+  const [openingBalance, setOpeningBalance] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return toast.error('Informe o nome do cartão');
+    const closing = Number(closingDay);
+    const due = Number(dueDay);
+    if (!closingDay || closing < 1 || closing > 31)
+      return toast.error('Informe um dia de fechamento entre 1 e 31');
+    if (!dueDay || due < 1 || due > 31)
+      return toast.error('Informe um dia de vencimento entre 1 e 31');
+
+    setSubmitting(true);
+    try {
+      const limitParsed = parseMoneyInput(creditLimit);
+      const openingParsed = parseMoneyInput(openingBalance);
+      const openingCents = Number.isNaN(openingParsed) ? 0 : reaisToCents(openingParsed);
+      const payload: AccountInput = {
+        name: name.trim(),
+        type: 'credit',
+        currency: 'BRL',
+        // Fatura em aberto inicial é dívida → saldo negativo.
+        balance: -openingCents,
+        creditLimit: !Number.isNaN(limitParsed) ? reaisToCents(limitParsed) : null,
+        closingDay: closing,
+        dueDay: due,
+        paymentAccountId: paymentAccountId || null,
+      };
+      await accountService.create(payload);
+      toast.success('Cartão cadastrado');
+      onClose();
+    } catch {
+      toast.error('Não foi possível cadastrar o cartão');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title="Novo cartão"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose} disabled={submitting}>
+            Cancelar
+          </Button>
+          <Button onClick={handleSubmit} loading={submitting}>
+            Salvar
+          </Button>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className={styles.formStack}>
+        <Input
+          label="Nome"
+          placeholder="Ex.: Nubank"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          autoFocus
+        />
+        <Input
+          type="text"
+          inputMode="decimal"
+          label="Limite do cartão"
+          placeholder="0,00"
+          value={creditLimit}
+          onChange={(e) => setCreditLimit(e.target.value)}
+        />
+        <div className={styles.formRow}>
+          <Input
+            type="number"
+            min={1}
+            max={31}
+            label="Dia de fechamento"
+            placeholder="Ex.: 28"
+            value={closingDay}
+            onChange={(e) => setClosingDay(e.target.value)}
+          />
+          <Input
+            type="number"
+            min={1}
+            max={31}
+            label="Dia de vencimento"
+            placeholder="Ex.: 5"
+            value={dueDay}
+            onChange={(e) => setDueDay(e.target.value)}
+          />
+        </div>
+        <Select
+          label="Conta que paga a fatura"
+          value={paymentAccountId}
+          onChange={(e) => setPaymentAccountId(e.target.value)}
+        >
+          <option value="">Selecione (opcional)...</option>
+          {cashAccounts.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name}
+            </option>
+          ))}
+        </Select>
+        <Input
+          type="text"
+          inputMode="decimal"
+          label="Fatura em aberto inicial"
+          placeholder="0,00"
+          value={openingBalance}
+          onChange={(e) => setOpeningBalance(e.target.value)}
+          hint="Deixe 0 se vai lançar os gastos do cartão pelas transações."
+        />
+      </form>
+    </Modal>
   );
 }
 
