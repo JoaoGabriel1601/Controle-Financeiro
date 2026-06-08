@@ -11,7 +11,7 @@ import { useDataStore } from '../../stores/dataStore';
 import { accountService } from '../../services/account.service';
 import { formatCurrency } from '../../utils/format';
 import { centsToReais, parseMoneyInput, reaisToCents } from '../../utils/money';
-import { computeAccountBalance, computeTotalBalance } from '../../utils/stats';
+import { computeAccountBalance, computeAvailableBalance } from '../../utils/stats';
 import { availableLimit, buildInvoices, currentCompetencia } from '../../utils/invoices';
 import type { Account, AccountInput, AccountType, Transaction } from '../../types';
 import styles from './Accounts.module.css';
@@ -62,8 +62,9 @@ export function AccountsPage() {
   const [deleting, setDeleting] = useState<Account | null>(null);
   const [removing, setRemoving] = useState(false);
 
-  const totalBalance = useMemo(
-    () => computeTotalBalance(accounts, transactions),
+  // Saldo somado só das contas de dinheiro (cartões têm seção/limite próprios).
+  const cashTotal = useMemo(
+    () => computeAvailableBalance(accounts, transactions),
     [accounts, transactions],
   );
 
@@ -72,8 +73,9 @@ export function AccountsPage() {
     [accounts, transactions],
   );
 
-  // Contas de dinheiro que podem pagar uma fatura (exclui cartões).
+  // Contas de dinheiro (exclui cartões) e cartões de crédito, em listas separadas.
   const cashAccounts = useMemo(() => accounts.filter((a) => a.type !== 'credit'), [accounts]);
+  const creditCards = useMemo(() => accounts.filter((a) => a.type === 'credit'), [accounts]);
 
   const requestDelete = (account: Account) => {
     const linked = transactions.filter((t) => t.accountId === account.id).length;
@@ -167,6 +169,31 @@ export function AccountsPage() {
     }
   };
 
+  const renderAccountCard = (account: Account) => (
+    <div key={account.id} className={styles.card}>
+      <div className={styles.cardHead}>
+        <span className={styles.cardIcon}>{TYPE_ICONS[account.type]}</span>
+        <div className={styles.cardActions}>
+          <button onClick={() => openEdit(account)} aria-label="Editar">
+            <Pencil size={14} />
+          </button>
+          <button onClick={() => requestDelete(account)} aria-label="Remover">
+            <Trash2 size={14} />
+          </button>
+        </div>
+      </div>
+      <div className={styles.cardName}>{account.name}</div>
+      <div className={styles.cardType}>{TYPE_LABELS[account.type]}</div>
+      {account.type === 'credit' ? (
+        <CreditCardFooter account={account} transactions={transactions} />
+      ) : (
+        <div className={styles.cardBalance}>
+          {formatCurrency(balanceMap.get(account.id) ?? account.balance, account.currency)}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className={styles.page}>
       <header className={styles.head}>
@@ -182,10 +209,14 @@ export function AccountsPage() {
       <Card className={styles.summary}>
         <div className={styles.summaryRow}>
           <div>
-            <span className={styles.summaryLabel}>Saldo total</span>
-            <strong className={styles.summaryValue}>{formatCurrency(totalBalance)}</strong>
+            <span className={styles.summaryLabel}>Saldo em contas</span>
+            <strong className={styles.summaryValue}>{formatCurrency(cashTotal)}</strong>
           </div>
-          <span className={styles.summaryHint}>{accounts.length} {accounts.length === 1 ? 'conta' : 'contas'}</span>
+          <span className={styles.summaryHint}>
+            {cashAccounts.length} {cashAccounts.length === 1 ? 'conta' : 'contas'}
+            {creditCards.length > 0 &&
+              ` · ${creditCards.length} ${creditCards.length === 1 ? 'cartão' : 'cartões'}`}
+          </span>
         </div>
       </Card>
 
@@ -203,32 +234,20 @@ export function AccountsPage() {
           />
         </Card>
       ) : (
-        <div className={styles.grid}>
-          {accounts.map((account) => (
-            <div key={account.id} className={styles.card}>
-              <div className={styles.cardHead}>
-                <span className={styles.cardIcon}>{TYPE_ICONS[account.type]}</span>
-                <div className={styles.cardActions}>
-                  <button onClick={() => openEdit(account)} aria-label="Editar">
-                    <Pencil size={14} />
-                  </button>
-                  <button onClick={() => requestDelete(account)} aria-label="Remover">
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-              <div className={styles.cardName}>{account.name}</div>
-              <div className={styles.cardType}>{TYPE_LABELS[account.type]}</div>
-              {account.type === 'credit' ? (
-                <CreditCardFooter account={account} transactions={transactions} />
-              ) : (
-                <div className={styles.cardBalance}>
-                  {formatCurrency(balanceMap.get(account.id) ?? account.balance, account.currency)}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+        <>
+          {cashAccounts.length > 0 && (
+            <section className={styles.section}>
+              <h2 className={styles.sectionTitle}>Contas</h2>
+              <div className={styles.grid}>{cashAccounts.map(renderAccountCard)}</div>
+            </section>
+          )}
+          {creditCards.length > 0 && (
+            <section className={styles.section}>
+              <h2 className={styles.sectionTitle}>Cartões de crédito</h2>
+              <div className={styles.grid}>{creditCards.map(renderAccountCard)}</div>
+            </section>
+          )}
+        </>
       )}
 
       <Modal
