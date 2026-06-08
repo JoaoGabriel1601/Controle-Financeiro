@@ -53,7 +53,7 @@ export function MonthlyBarChart({ data }: Props) {
             }}
             formatter={(value) => formatCurrency(Number(value))}
           />
-          <Legend wrapperStyle={{ fontSize: 12, color: 'var(--text-muted)' }} />
+          <Legend wrapperStyle={{ fontSize: 12, color: 'var(--text-muted)', paddingTop: 14 }} />
           <Bar dataKey="income" name="Receita" fill="var(--success)" radius={[6, 6, 0, 0]} />
           <Bar dataKey="expense" name="Despesa" fill="var(--danger)" radius={[6, 6, 0, 0]} />
         </BarChart>

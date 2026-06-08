@@ -53,7 +53,7 @@ export function IncomeExpenseLineChart({ data }: Props) {
             }}
             formatter={(value) => formatCurrency(Number(value))}
           />
-          <Legend wrapperStyle={{ fontSize: 12, color: 'var(--text-muted)' }} />
+          <Legend wrapperStyle={{ fontSize: 12, color: 'var(--text-muted)', paddingTop: 14 }} />
           <Line
             type="monotone"
             dataKey="income"
