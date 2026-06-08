@@ -5,6 +5,7 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Input, Select } from '../../components/ui/Input';
+import { DateField } from '../../components/ui/DateField';
 import { Badge } from '../../components/ui/Badge';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
@@ -328,11 +329,10 @@ export function LoansPage() {
               hint={installmentPreview}
             />
           </div>
-          <Input
+          <DateField
             label="Primeira parcela"
-            type="date"
             value={form.firstDueDate}
-            onChange={(e) => setForm({ ...form, firstDueDate: e.target.value })}
+            onChange={(firstDueDate) => setForm({ ...form, firstDueDate })}
             hint="As próximas vencem no mesmo dia dos meses seguintes."
           />
           <Select

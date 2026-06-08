@@ -9,6 +9,7 @@ import { Badge } from '../../components/ui/Badge';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { BrandLogo } from '../../components/ui/BrandLogo';
+import { DateField } from '../../components/ui/DateField';
 import { CARD_BRANDS, INSTITUTIONS } from '../../utils/brands';
 import { toast } from '../../components/ui/toastStore';
 import { useDataStore } from '../../stores/dataStore';
@@ -566,12 +567,7 @@ function PayInvoiceModal({ target, cashAccounts, onClose }: PayInvoiceModalProps
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
             />
-            <Input
-              label="Data"
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
+            <DateField label="Data" value={date} onChange={setDate} />
           </div>
         </form>
       )}

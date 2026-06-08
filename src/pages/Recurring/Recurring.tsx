@@ -6,6 +6,7 @@ import { Modal } from '../../components/ui/Modal';
 import { Input, Select } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
 import { AccountOptions } from '../../components/ui/AccountOptions';
+import { DateField } from '../../components/ui/DateField';
 import { PaymentMethodSelector } from '../../components/ui/PaymentMethodSelector';
 import { METHOD_LABELS } from '../../utils/paymentMethods';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -332,11 +333,10 @@ export function RecurringPage() {
               <option value="expense">Despesa</option>
               <option value="income">Receita</option>
             </Select>
-            <Input
+            <DateField
               label="Próximo lançamento"
-              type="date"
               value={form.nextDueDate}
-              onChange={(e) => setForm({ ...form, nextDueDate: e.target.value })}
+              onChange={(nextDueDate) => setForm({ ...form, nextDueDate })}
             />
           </div>
 

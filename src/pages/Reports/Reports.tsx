@@ -3,7 +3,7 @@ import { Download, FileSpreadsheet, FileText } from 'lucide-react';
 import { startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
+import { DateField } from '../../components/ui/DateField';
 import { Badge } from '../../components/ui/Badge';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { toast } from '../../components/ui/toastStore';
@@ -62,18 +62,8 @@ export function ReportsPage() {
 
       <Card padded={false} className={styles.filtersCard}>
         <div className={styles.filters}>
-          <Input
-            type="date"
-            label="Início"
-            value={start}
-            onChange={(e) => setStart(e.target.value)}
-          />
-          <Input
-            type="date"
-            label="Fim"
-            value={end}
-            onChange={(e) => setEnd(e.target.value)}
-          />
+          <DateField label="Início" value={start} onChange={setStart} />
+          <DateField label="Fim" value={end} onChange={setEnd} />
           <div className={styles.exports}>
             <Button variant="secondary" leftIcon={<FileSpreadsheet size={16} />} onClick={handleCsv}>
               Exportar CSV

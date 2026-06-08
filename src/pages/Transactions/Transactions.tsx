@@ -7,6 +7,7 @@ import { Modal } from '../../components/ui/Modal';
 import { Input, Select } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
 import { AccountOptions } from '../../components/ui/AccountOptions';
+import { DateField } from '../../components/ui/DateField';
 import { PaymentMethodSelector } from '../../components/ui/PaymentMethodSelector';
 import { METHOD_LABELS } from '../../utils/paymentMethods';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -488,11 +489,10 @@ export function TransactionsPage() {
               value={form.amount}
               onChange={(e) => setForm({ ...form, amount: e.target.value })}
             />
-            <Input
+            <DateField
               label="Data"
-              type="date"
               value={form.date}
-              onChange={(e) => setForm({ ...form, date: e.target.value })}
+              onChange={(date) => setForm({ ...form, date })}
             />
           </div>
 
