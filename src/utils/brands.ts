@@ -1,13 +1,4 @@
-import {
-  siNubank,
-  siPicpay,
-  siMercadopago,
-  siPagseguro,
-  siNeon,
-  siWise,
-  siRevolut,
-  siN26,
-} from 'simple-icons';
+import { siWise, siRevolut, siN26 } from 'simple-icons';
 import type { SimpleIcon } from 'simple-icons';
 
 export interface BrandDef {
@@ -35,7 +26,7 @@ export const CARD_BRANDS: BrandDef[] = [
 
 /** Bancos e fintechs. Logo oficial quando o simple-icons tem; senão, iniciais. */
 export const INSTITUTIONS: BrandDef[] = [
-  { slug: 'nubank', label: 'Nubank', hex: '820AD1', icon: siNubank },
+  { slug: 'nubank', label: 'Nubank', hex: '820AD1' },
   { slug: 'itau', label: 'Itaú', hex: 'EC7000' },
   { slug: 'bb', label: 'Banco do Brasil', hex: '0033A0' },
   { slug: 'bradesco', label: 'Bradesco', hex: 'CC092F' },
@@ -48,10 +39,10 @@ export const INSTITUTIONS: BrandDef[] = [
   { slug: 'safra', label: 'Safra', hex: '00261C' },
   { slug: 'sicredi', label: 'Sicredi', hex: '3FA535' },
   { slug: 'sicoob', label: 'Sicoob', hex: '003641' },
-  { slug: 'picpay', label: 'PicPay', hex: '21C25E', icon: siPicpay },
-  { slug: 'mercadopago', label: 'Mercado Pago', hex: '00B1EA', icon: siMercadopago },
-  { slug: 'pagbank', label: 'PagBank', hex: 'FFC801', icon: siPagseguro },
-  { slug: 'neon', label: 'Neon', hex: '00E0FF', icon: siNeon },
+  { slug: 'picpay', label: 'PicPay', hex: '21C25E' },
+  { slug: 'mercadopago', label: 'Mercado Pago', hex: '00B1EA' },
+  { slug: 'pagbank', label: 'PagBank', hex: 'FFC801' },
+  { slug: 'neon', label: 'Neon', hex: '00E0FF' },
   { slug: 'stone', label: 'Stone', hex: '00A868' },
   { slug: 'wise', label: 'Wise', hex: '163300', icon: siWise },
   { slug: 'revolut', label: 'Revolut', hex: '191C1F', icon: siRevolut },
