@@ -1,6 +1,20 @@
 import { useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import { addMonths } from 'date-fns';
-import { Plus, Pencil, Trash2, ArrowLeftRight, Search, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  ArrowLeftRight,
+  Search,
+  ArrowDownLeft,
+  ArrowUpRight,
+  QrCode,
+  CreditCard,
+  Banknote,
+  Wallet,
+  Barcode,
+} from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
@@ -24,8 +38,15 @@ const METHOD_LABELS: Record<PaymentMethod, string> = {
   credit: 'Crédito',
 };
 
-// Métodos válidos quando a despesa sai de uma conta de dinheiro (crédito é só no cartão).
-const CASH_METHODS: PaymentMethod[] = ['pix', 'debit', 'cash', 'boleto'];
+// Ordem e ícone de cada método no seletor. "credit" usa conta de cartão; os
+// demais saem de uma conta de dinheiro.
+const PAYMENT_METHODS: { value: PaymentMethod; icon: ReactNode }[] = [
+  { value: 'pix', icon: <QrCode size={18} /> },
+  { value: 'debit', icon: <CreditCard size={18} /> },
+  { value: 'cash', icon: <Banknote size={18} /> },
+  { value: 'credit', icon: <Wallet size={18} /> },
+  { value: 'boleto', icon: <Barcode size={18} /> },
+];
 
 interface FormState {
   type: TransactionType;
@@ -83,7 +104,9 @@ export function TransactionsPage() {
 
   const openNew = () => {
     setEditing(null);
-    setForm(emptyForm(categories[0]?.id ?? '', accounts[0]?.id ?? '', accounts[1]?.id ?? ''));
+    const firstExpense = categories.find((c) => c.type === 'expense');
+    const firstCash = accounts.find((a) => a.type !== 'credit');
+    setForm(emptyForm(firstExpense?.id ?? '', firstCash?.id ?? accounts[0]?.id ?? '', accounts[1]?.id ?? ''));
     setModalOpen(true);
   };
 
@@ -103,21 +126,29 @@ export function TransactionsPage() {
     setModalOpen(true);
   };
 
-  const selectedAccount = accounts.find((a) => a.id === form.accountId);
-  const isCreditAccount = selectedAccount?.type === 'credit';
-  // Parcelamento só faz sentido para uma compra nova no cartão de crédito.
-  const canInstall = !editing && form.type === 'expense' && isCreditAccount;
+  const creditCards = useMemo(() => accounts.filter((a) => a.type === 'credit'), [accounts]);
+  const cashAccounts = useMemo(() => accounts.filter((a) => a.type !== 'credit'), [accounts]);
 
-  // Método efetivo: no cartão é sempre "crédito"; em conta de dinheiro, a escolha
-  // do usuário (nunca "crédito"). Só despesas têm método.
-  const effectiveMethod: PaymentMethod | null =
-    form.type === 'expense'
-      ? isCreditAccount
-        ? 'credit'
-        : form.paymentMethod === 'credit'
-          ? 'pix'
-          : form.paymentMethod
-      : null;
+  const selectedAccount = accounts.find((a) => a.id === form.accountId);
+  const isCreditPurchase = form.type === 'expense' && form.paymentMethod === 'credit';
+
+  // Conjunto de contas válidas para o (tipo, método) atual.
+  const poolFor = (type: TransactionType, method: PaymentMethod) =>
+    type === 'expense' ? (method === 'credit' ? creditCards : cashAccounts) : accounts;
+  // Mantém a conta selecionada coerente ao trocar tipo/método.
+  const reconcileAccount = (type: TransactionType, method: PaymentMethod, currentId: string) => {
+    const pool = poolFor(type, method);
+    return pool.some((a) => a.id === currentId) ? currentId : (pool[0]?.id ?? '');
+  };
+
+  // Contas mostradas no seletor de conta.
+  const accountOptions = poolFor(form.type, form.paymentMethod);
+
+  // Parcelamento só faz sentido numa compra nova no crédito (conta = cartão).
+  const canInstall = !editing && isCreditPurchase && selectedAccount?.type === 'credit';
+
+  // Só despesas carregam método de pagamento.
+  const effectiveMethod: PaymentMethod | null = form.type === 'expense' ? form.paymentMethod : null;
 
   const installmentPreview = (() => {
     if (!canInstall) return undefined;
@@ -413,6 +444,14 @@ export function TransactionsPage() {
                 type === 'income' ? styles.income : type === 'transfer' ? styles.transfer : styles.expense;
               const label =
                 type === 'income' ? 'Receita' : type === 'transfer' ? 'Transferência' : 'Despesa';
+              const icon =
+                type === 'income' ? (
+                  <ArrowDownLeft size={16} />
+                ) : type === 'transfer' ? (
+                  <ArrowLeftRight size={16} />
+                ) : (
+                  <ArrowUpRight size={16} />
+                );
               return (
                 <button
                   key={type}
@@ -421,6 +460,7 @@ export function TransactionsPage() {
                     setForm({
                       ...form,
                       type,
+                      accountId: reconcileAccount(type, form.paymentMethod, form.accountId),
                       categoryId:
                         type === 'transfer'
                           ? form.categoryId
@@ -429,7 +469,8 @@ export function TransactionsPage() {
                   }
                   className={`${styles.typeBtn} ${form.type === type ? styles.typeBtnActive : ''} ${toneClass}`}
                 >
-                  {label}
+                  {icon}
+                  <span>{label}</span>
                 </button>
               );
             })}
@@ -475,39 +516,49 @@ export function TransactionsPage() {
             </Select>
           )}
 
+          {form.type === 'expense' && (
+            <div className={styles.field}>
+              <span className={styles.fieldLabel}>Método de pagamento</span>
+              <div className={styles.methodGrid}>
+                {PAYMENT_METHODS.map(({ value, icon }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() =>
+                      setForm({
+                        ...form,
+                        paymentMethod: value,
+                        accountId: reconcileAccount(form.type, value, form.accountId),
+                        installments: value === 'credit' ? form.installments : '1',
+                      })
+                    }
+                    className={`${styles.methodBtn} ${form.paymentMethod === value ? styles.methodBtnActive : ''}`}
+                  >
+                    {icon}
+                    <span>{METHOD_LABELS[value]}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <Select
-            label={form.type === 'transfer' ? 'Conta de origem' : 'Conta'}
+            label={form.type === 'transfer' ? 'Conta de origem' : isCreditPurchase ? 'Cartão' : 'Conta'}
             value={form.accountId}
             onChange={(e) => setForm({ ...form, accountId: e.target.value })}
+            hint={
+              isCreditPurchase && creditCards.length === 0
+                ? 'Nenhum cartão cadastrado — cadastre um em Cartões.'
+                : undefined
+            }
           >
             <option value="">Selecione...</option>
-            {accounts.map((a) => (
+            {accountOptions.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name}
               </option>
             ))}
           </Select>
-
-          {form.type === 'expense' &&
-            (isCreditAccount ? (
-              <Select label="Método de pagamento" value="credit" disabled>
-                <option value="credit">Crédito (cartão)</option>
-              </Select>
-            ) : (
-              <Select
-                label="Método de pagamento"
-                value={form.paymentMethod}
-                onChange={(e) =>
-                  setForm({ ...form, paymentMethod: e.target.value as PaymentMethod })
-                }
-              >
-                {CASH_METHODS.map((m) => (
-                  <option key={m} value={m}>
-                    {METHOD_LABELS[m]}
-                  </option>
-                ))}
-              </Select>
-            ))}
 
           {form.type === 'transfer' && (
             <Select
