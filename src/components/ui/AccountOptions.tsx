@@ -4,35 +4,32 @@ interface AccountOptionsProps {
   accounts: Account[];
 }
 
+const toOptions = (accounts: Account[]) =>
+  accounts.map((a) => (
+    <option key={a.id} value={a.id}>
+      {a.name}
+    </option>
+  ));
+
 /**
- * Opções de um <select> de contas, separando "Contas" (dinheiro) de "Cartões"
- * (crédito) em <optgroup> distintos. Deve ser usado dentro de um <Select>,
- * normalmente após uma <option> de placeholder/"todas".
+ * Opções de um <select> de contas. Quando há contas de dinheiro e cartões
+ * juntos, separa em <optgroup> ("Contas"/"Cartões"); se há só um tipo, lista as
+ * opções direto (sem o rótulo de grupo, que seria redundante). Deve ser usado
+ * dentro de um <Select>, normalmente após uma <option> de placeholder/"todas".
  */
 export function AccountOptions({ accounts }: AccountOptionsProps) {
   const cash = accounts.filter((a) => a.type !== 'credit');
   const cards = accounts.filter((a) => a.type === 'credit');
 
+  // Só agrupa (com rótulo) quando os dois tipos coexistem.
+  if (cash.length === 0 || cards.length === 0) {
+    return <>{toOptions(accounts)}</>;
+  }
+
   return (
     <>
-      {cash.length > 0 && (
-        <optgroup label="Contas">
-          {cash.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.name}
-            </option>
-          ))}
-        </optgroup>
-      )}
-      {cards.length > 0 && (
-        <optgroup label="Cartões">
-          {cards.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.name}
-            </option>
-          ))}
-        </optgroup>
-      )}
+      <optgroup label="Contas">{toOptions(cash)}</optgroup>
+      <optgroup label="Cartões">{toOptions(cards)}</optgroup>
     </>
   );
 }
