@@ -21,19 +21,25 @@
   color: var(--text-muted);
 }
 
-.cards {
+.cardsTop {
   display: grid;
-  /* 4 cards fixos: sempre fecham linhas completas (4 → 2x2 → 1), sem espaço morto. */
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.cardsBottom {
+  display: grid;
+  /* 3 cards: fecham a linha sem espaço morto. */
+  grid-template-columns: repeat(3, 1fr);
   gap: 14px;
 }
-@media (max-width: 1100px) {
-  .cards {
-    grid-template-columns: repeat(2, 1fr);
+
+@media (max-width: 720px) {
+  .cardsTop {
+    grid-template-columns: 1fr;
   }
-}
-@media (max-width: 520px) {
-  .cards {
+  .cardsBottom {
     grid-template-columns: 1fr;
   }
 }
@@ -101,6 +107,22 @@
   font-weight: 700;
   color: var(--text);
   font-variant-numeric: tabular-nums;
+}
+
+/* Cards de destaque (Saldo disponível / Patrimônio): maiores. */
+.summaryLarge {
+  padding: 24px 26px;
+  gap: 8px;
+}
+.summaryLarge .summaryIcon {
+  width: 44px;
+  height: 44px;
+}
+.summaryLarge .summaryLabel {
+  font-size: 14px;
+}
+.summaryLarge .summaryValue {
+  font-size: 32px;
 }
 
 .windowSwitch {

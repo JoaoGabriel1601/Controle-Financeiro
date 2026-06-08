@@ -143,19 +143,24 @@ export function Dashboard() {
         </div>
       </header>
 
-      <div className={styles.cards}>
+      <div className={styles.cardsTop}>
         <SummaryCard
-          icon={<Wallet size={20} />}
+          icon={<Wallet size={22} />}
           label="Saldo disponível"
           value={formatCurrency(availableBalance)}
           tone="primary"
+          large
         />
         <SummaryCard
-          icon={<Landmark size={20} />}
+          icon={<Landmark size={22} />}
           label="Patrimônio"
           value={formatCurrency(netWorth)}
           tone={netWorth >= 0 ? 'success' : 'danger'}
+          large
         />
+      </div>
+
+      <div className={styles.cardsBottom}>
         <SummaryCard
           icon={<ArrowDownLeft size={20} />}
           label="Receitas do mês"
@@ -402,11 +407,14 @@ interface SummaryCardProps {
   label: string;
   value: string;
   tone: 'primary' | 'success' | 'danger';
+  large?: boolean;
 }
 
-function SummaryCard({ icon, label, value, tone }: SummaryCardProps) {
+function SummaryCard({ icon, label, value, tone, large = false }: SummaryCardProps) {
   return (
-    <div className={`${styles.summary} ${styles[`tone_${tone}`]}`}>
+    <div
+      className={`${styles.summary} ${styles[`tone_${tone}`]} ${large ? styles.summaryLarge : ''}`}
+    >
       <span className={styles.summaryIcon}>{icon}</span>
       <span className={styles.summaryLabel}>{label}</span>
       <strong className={styles.summaryValue}>{value}</strong>
