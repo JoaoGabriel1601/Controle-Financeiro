@@ -1,26 +1,14 @@
 import { useMemo, useState } from 'react';
-import type { ReactNode } from 'react';
 import { addMonths } from 'date-fns';
-import {
-  Plus,
-  Pencil,
-  Trash2,
-  ArrowLeftRight,
-  Search,
-  ArrowDownLeft,
-  ArrowUpRight,
-  QrCode,
-  CreditCard,
-  Banknote,
-  Wallet,
-  Barcode,
-} from 'lucide-react';
+import { Plus, Pencil, Trash2, ArrowLeftRight, Search, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Input, Select } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
 import { AccountOptions } from '../../components/ui/AccountOptions';
+import { PaymentMethodSelector } from '../../components/ui/PaymentMethodSelector';
+import { METHOD_LABELS } from '../../utils/paymentMethods';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { toast } from '../../components/ui/toastStore';
@@ -30,24 +18,6 @@ import { dateInputValue, formatCurrency, formatDate, parseDateInput, toJsDate } 
 import { centsToReais, parseMoneyInput, reaisToCents } from '../../utils/money';
 import type { PaymentMethod, Transaction, TransactionType } from '../../types';
 import styles from './Transactions.module.css';
-
-const METHOD_LABELS: Record<PaymentMethod, string> = {
-  pix: 'PIX',
-  debit: 'Débito',
-  cash: 'Dinheiro',
-  boleto: 'Boleto',
-  credit: 'Crédito',
-};
-
-// Ordem e ícone de cada método no seletor. "credit" usa conta de cartão; os
-// demais saem de uma conta de dinheiro.
-const PAYMENT_METHODS: { value: PaymentMethod; icon: ReactNode }[] = [
-  { value: 'pix', icon: <QrCode size={18} /> },
-  { value: 'debit', icon: <CreditCard size={18} /> },
-  { value: 'cash', icon: <Banknote size={18} /> },
-  { value: 'credit', icon: <Wallet size={18} /> },
-  { value: 'boleto', icon: <Barcode size={18} /> },
-];
 
 interface FormState {
   type: TransactionType;
@@ -542,29 +512,17 @@ export function TransactionsPage() {
           )}
 
           {form.type === 'expense' && (
-            <div className={styles.field}>
-              <span className={styles.fieldLabel}>Método de pagamento</span>
-              <div className={styles.methodGrid}>
-                {PAYMENT_METHODS.map(({ value, icon }) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() =>
-                      setForm({
-                        ...form,
-                        paymentMethod: value,
-                        accountId: reconcileAccount(form.type, value, form.accountId),
-                        installments: value === 'credit' ? form.installments : '1',
-                      })
-                    }
-                    className={`${styles.methodBtn} ${form.paymentMethod === value ? styles.methodBtnActive : ''}`}
-                  >
-                    {icon}
-                    <span>{METHOD_LABELS[value]}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+            <PaymentMethodSelector
+              value={form.paymentMethod}
+              onChange={(method) =>
+                setForm({
+                  ...form,
+                  paymentMethod: method,
+                  accountId: reconcileAccount(form.type, method, form.accountId),
+                  installments: method === 'credit' ? form.installments : '1',
+                })
+              }
+            />
           )}
 
           <Select

@@ -6,6 +6,8 @@ import { Modal } from '../../components/ui/Modal';
 import { Input, Select } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
 import { AccountOptions } from '../../components/ui/AccountOptions';
+import { PaymentMethodSelector } from '../../components/ui/PaymentMethodSelector';
+import { METHOD_LABELS } from '../../utils/paymentMethods';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { toast } from '../../components/ui/toastStore';
@@ -13,7 +15,7 @@ import { useDataStore } from '../../stores/dataStore';
 import { recurringService } from '../../services/recurring.service';
 import { dateInputValue, formatCurrency, formatDate, parseDateInput } from '../../utils/format';
 import { centsToReais, parseMoneyInput, reaisToCents } from '../../utils/money';
-import type { Frequency, RecurringTransaction, RecurringInput } from '../../types';
+import type { Frequency, PaymentMethod, RecurringTransaction, RecurringInput } from '../../types';
 import styles from './Recurring.module.css';
 
 const FREQUENCY_LABEL: Record<Frequency, string> = {
@@ -31,6 +33,7 @@ interface FormState {
   frequency: Frequency;
   nextDueDate: string;
   isActive: boolean;
+  paymentMethod: PaymentMethod;
 }
 
 const emptyForm = (categoryId: string, accountId: string): FormState => ({
@@ -42,6 +45,7 @@ const emptyForm = (categoryId: string, accountId: string): FormState => ({
   frequency: 'monthly',
   nextDueDate: dateInputValue(new Date()),
   isActive: true,
+  paymentMethod: 'pix',
 });
 
 export function RecurringPage() {
@@ -64,10 +68,28 @@ export function RecurringPage() {
     [categories, form.type],
   );
 
+  const creditCards = useMemo(() => accounts.filter((a) => a.type === 'credit'), [accounts]);
+  const cashAccounts = useMemo(() => accounts.filter((a) => a.type !== 'credit'), [accounts]);
+
+  const isCreditExpense = form.type === 'expense' && form.paymentMethod === 'credit';
+
+  // Conjunto de contas válidas para o (tipo, método) atual.
+  const poolFor = (type: 'income' | 'expense', method: PaymentMethod) =>
+    type === 'expense' ? (method === 'credit' ? creditCards : cashAccounts) : accounts;
+  const reconcileAccount = (type: 'income' | 'expense', method: PaymentMethod, currentId: string) => {
+    const pool = poolFor(type, method);
+    return pool.some((a) => a.id === currentId) ? currentId : (pool[0]?.id ?? '');
+  };
+
+  const accountOptions = poolFor(form.type, form.paymentMethod);
+  // Só despesas carregam método de pagamento.
+  const effectiveMethod: PaymentMethod | null = form.type === 'expense' ? form.paymentMethod : null;
+
   const openNew = () => {
     setEditing(null);
     const firstExpense = categories.find((c) => c.type === 'expense');
-    setForm(emptyForm(firstExpense?.id ?? '', accounts[0]?.id ?? ''));
+    const firstCash = accounts.find((a) => a.type !== 'credit');
+    setForm(emptyForm(firstExpense?.id ?? '', firstCash?.id ?? accounts[0]?.id ?? ''));
     setModalOpen(true);
   };
 
@@ -82,6 +104,7 @@ export function RecurringPage() {
       frequency: r.frequency,
       nextDueDate: r.nextDueDate,
       isActive: r.isActive,
+      paymentMethod: r.paymentMethod ?? 'pix',
     });
     setModalOpen(true);
   };
@@ -106,6 +129,7 @@ export function RecurringPage() {
         frequency: form.frequency,
         nextDueDate: form.nextDueDate,
         isActive: form.isActive,
+        paymentMethod: effectiveMethod,
       };
       if (editing) {
         await recurringService.update(editing.id, payload);
@@ -223,6 +247,7 @@ export function RecurringPage() {
 
                 <div className={styles.itemMeta}>
                   <Badge tone="neutral">{FREQUENCY_LABEL[r.frequency]}</Badge>
+                  {r.paymentMethod && <Badge tone="primary">{METHOD_LABELS[r.paymentMethod]}</Badge>}
                   {r.isActive ? (
                     <span>Próximo: {formatDate(parseDateInput(r.nextDueDate))}</span>
                   ) : (
@@ -300,6 +325,7 @@ export function RecurringPage() {
                   ...form,
                   type,
                   categoryId: categories.find((c) => c.type === type)?.id ?? '',
+                  accountId: reconcileAccount(type, form.paymentMethod, form.accountId),
                 });
               }}
             >
@@ -327,13 +353,31 @@ export function RecurringPage() {
             ))}
           </Select>
 
+          {form.type === 'expense' && (
+            <PaymentMethodSelector
+              value={form.paymentMethod}
+              onChange={(method) =>
+                setForm({
+                  ...form,
+                  paymentMethod: method,
+                  accountId: reconcileAccount(form.type, method, form.accountId),
+                })
+              }
+            />
+          )}
+
           <Select
-            label="Conta"
+            label={isCreditExpense ? 'Cartão' : 'Conta'}
             value={form.accountId}
             onChange={(e) => setForm({ ...form, accountId: e.target.value })}
+            hint={
+              isCreditExpense && creditCards.length === 0
+                ? 'Nenhum cartão cadastrado — cadastre um em Cartões.'
+                : undefined
+            }
           >
             <option value="">Selecione...</option>
-            <AccountOptions accounts={accounts} />
+            <AccountOptions accounts={accountOptions} />
           </Select>
 
           <label className={styles.checkboxRow}>

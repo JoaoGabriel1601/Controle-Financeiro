@@ -3,7 +3,7 @@ import type { RecurringTransaction, RecurringInput } from '../types';
 
 const TABLE = 'recurring_transactions';
 const SELECT =
-  'id, accountId:account_id, categoryId:category_id, type, amount, description, frequency, dayOfMonth:day_of_month, isActive:is_active, nextDueDate:next_due_date, createdAt:created_at';
+  'id, accountId:account_id, categoryId:category_id, type, amount, description, frequency, paymentMethod:payment_method, dayOfMonth:day_of_month, isActive:is_active, nextDueDate:next_due_date, createdAt:created_at';
 
 /** Mapeia o input (camelCase) para a linha do Postgres (snake_case). */
 function toRow(data: Partial<RecurringInput>): Record<string, unknown> {
@@ -14,6 +14,7 @@ function toRow(data: Partial<RecurringInput>): Record<string, unknown> {
   if (data.amount !== undefined) row.amount = data.amount;
   if (data.description !== undefined) row.description = data.description;
   if (data.frequency !== undefined) row.frequency = data.frequency;
+  if (data.paymentMethod !== undefined) row.payment_method = data.paymentMethod || null;
   if (data.isActive !== undefined) row.is_active = data.isActive;
   if (data.nextDueDate !== undefined) row.next_due_date = data.nextDueDate;
   return row;

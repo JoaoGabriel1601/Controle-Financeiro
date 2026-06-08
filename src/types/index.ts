@@ -88,6 +88,8 @@ export interface RecurringTransaction {
   amount: number;
   description: string;
   frequency: Frequency;
+  /** Método de pagamento herdado pela transação gerada (só despesas). */
+  paymentMethod?: PaymentMethod | null;
   dayOfMonth?: number | null;
   isActive: boolean;
   /** Próxima data de geração (ISO `yyyy-MM-dd`). */
