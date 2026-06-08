@@ -111,6 +111,17 @@ textarea {
   color: inherit;
 }
 
+/*
+ * O popup nativo de <select> herda a cor de texto clara do tema sobre um fundo
+ * branco do SO, deixando as opções ilegíveis. Forçamos fundo/cor explícitos nas
+ * opções para garantir contraste em qualquer navegador (claro e escuro).
+ */
+select option,
+select optgroup {
+  background-color: var(--bg-elevated);
+  color: var(--text);
+}
+
 a {
   color: inherit;
   text-decoration: none;
