@@ -1,7 +1,4 @@
 import {
-  siVisa,
-  siMastercard,
-  siAmericanexpress,
   siNubank,
   siPicpay,
   siMercadopago,
@@ -23,12 +20,16 @@ export interface BrandDef {
   icon?: SimpleIcon;
 }
 
-/** Bandeiras de cartão (rede). */
+/**
+ * Bandeiras de cartão (rede). As logos full-color vêm do pacote
+ * `react-svg-credit-card-payment-icons` (ver BrandLogo); aqui ficam só
+ * label/cor para os selects e o fallback.
+ */
 export const CARD_BRANDS: BrandDef[] = [
-  { slug: 'visa', label: 'Visa', hex: '1A1F71', icon: siVisa },
-  { slug: 'mastercard', label: 'Mastercard', hex: 'EB001B', icon: siMastercard },
+  { slug: 'visa', label: 'Visa', hex: '1A1F71' },
+  { slug: 'mastercard', label: 'Mastercard', hex: 'EB001B' },
   { slug: 'elo', label: 'Elo', hex: '00A4E0' },
-  { slug: 'amex', label: 'American Express', hex: '2E77BC', icon: siAmericanexpress },
+  { slug: 'amex', label: 'American Express', hex: '2E77BC' },
   { slug: 'hipercard', label: 'Hipercard', hex: '822124' },
 ];
 

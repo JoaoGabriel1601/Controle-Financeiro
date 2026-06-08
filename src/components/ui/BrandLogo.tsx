@@ -1,22 +1,51 @@
+import visaSvg from 'payment-icons/min/flat/visa.svg';
+import mastercardSvg from 'payment-icons/min/flat/mastercard.svg';
+import amexSvg from 'payment-icons/min/flat/amex.svg';
+import eloSvg from 'payment-icons/min/flat/elo.svg';
+import hipercardSvg from 'payment-icons/min/flat/hipercard.svg';
 import { brandInitials, findBrand, readableOn } from '../../utils/brands';
+
+// Logos full-color das bandeiras (SVG de cartão arredondado, proporção ~3:2).
+const CARD_LOGOS: Record<string, string> = {
+  visa: visaSvg,
+  mastercard: mastercardSvg,
+  amex: amexSvg,
+  elo: eloSvg,
+  hipercard: hipercardSvg,
+};
 
 interface BrandLogoProps {
   /** Slug da marca (bandeira ou instituição). */
   slug: string | null | undefined;
   size?: number;
-  /** Cantos arredondados do chip (px). */
+  /** Cantos arredondados do chip de instituição (px). */
   radius?: number;
   title?: string;
 }
 
 /**
- * Chip com a logo da marca: fundo na cor da marca + glyph oficial (simple-icons)
- * quando existe; senão, iniciais. Cor do conteúdo escolhida por contraste.
+ * Logo da marca. Bandeiras de cartão usam a logo oficial full-color; bancos e
+ * fintechs usam um chip na cor da marca com o glyph oficial (simple-icons)
+ * quando existe, ou iniciais como fallback.
  */
 export function BrandLogo({ slug, size = 32, radius = 8, title }: BrandLogoProps) {
   const brand = findBrand(slug);
   if (!brand) return null;
 
+  // Bandeira: logo oficial colorida (tile de cartão, ~1,5× de largura).
+  const cardLogo = slug ? CARD_LOGOS[slug] : undefined;
+  if (cardLogo) {
+    return (
+      <img
+        src={cardLogo}
+        alt={brand.label}
+        title={title ?? brand.label}
+        style={{ height: size, width: 'auto', flexShrink: 0, display: 'block' }}
+      />
+    );
+  }
+
+  // Instituição: chip na cor da marca.
   const bg = `#${brand.hex}`;
   const fg = readableOn(brand.hex);
 
