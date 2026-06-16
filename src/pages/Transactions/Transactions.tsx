@@ -16,6 +16,7 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Input, Select } from '../../components/ui/Input';
+import { MoneyField } from '../../components/ui/MoneyField';
 import { IconSelect, type IconSelectOption } from '../../components/ui/IconSelect';
 import { Badge } from '../../components/ui/Badge';
 import { BrandLogo } from '../../components/ui/BrandLogo';
@@ -29,7 +30,6 @@ import { toast } from '../../components/ui/toastStore';
 import { useDataStore } from '../../stores/dataStore';
 import { transactionService } from '../../services/transaction.service';
 import { dateInputValue, formatCurrency, formatDate, parseDateInput, toJsDate } from '../../utils/format';
-import { centsToReais, parseMoneyInput, reaisToCents } from '../../utils/money';
 import type { Account, PaymentMethod, Transaction, TransactionType } from '../../types';
 import styles from './Transactions.module.css';
 
@@ -43,7 +43,7 @@ const accountToOption = (a: Account): IconSelectOption => ({
 
 interface FormState {
   type: TransactionType;
-  amount: string;
+  amountCents: number;
   description: string;
   categoryId: string;
   accountId: string;
@@ -55,7 +55,7 @@ interface FormState {
 
 const emptyForm = (categoryId: string, accountId: string, toAccountId = ''): FormState => ({
   type: 'expense',
-  amount: '',
+  amountCents: 0,
   description: '',
   categoryId,
   accountId,
@@ -109,7 +109,7 @@ export function TransactionsPage() {
     setEditing(tx);
     setForm({
       type: tx.type,
-      amount: String(centsToReais(tx.amount)),
+      amountCents: tx.amount,
       description: tx.description,
       categoryId: tx.categoryId,
       accountId: tx.accountId,
@@ -186,14 +186,14 @@ export function TransactionsPage() {
   const installmentPreview = (() => {
     if (!canInstall) return undefined;
     const n = Math.max(1, Math.min(60, Math.trunc(Number(form.installments)) || 1));
-    const cents = reaisToCents(parseMoneyInput(form.amount));
+    const cents = form.amountCents;
     if (!cents || n <= 1) return undefined;
     return `${n}× de aprox. ${formatCurrency(Math.floor(cents / n))}`;
   })();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const amount = reaisToCents(parseMoneyInput(form.amount));
+    const amount = form.amountCents;
     const isTransfer = form.type === 'transfer';
     if (!amount || amount <= 0) return toast.error('Informe um valor maior que zero');
     if (!form.description.trim()) return toast.error('Informe uma descrição');
@@ -532,13 +532,10 @@ export function TransactionsPage() {
           />
 
           <div className={styles.formRow}>
-            <Input
+            <MoneyField
               label="Valor"
-              type="text"
-              inputMode="decimal"
-              placeholder="0,00"
-              value={form.amount}
-              onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              value={form.amountCents}
+              onChange={(cents) => setForm({ ...form, amountCents: cents })}
             />
             <DateField
               label="Data"
