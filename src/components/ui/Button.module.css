@@ -6,8 +6,8 @@
   border-radius: var(--radius-md);
   font-weight: 600;
   letter-spacing: 0.01em;
+  /* transform fica por conta do motion (whileTap/whileHover). */
   transition:
-    transform 0.15s ease,
     background 0.15s ease,
     box-shadow 0.15s ease,
     color 0.15s ease;
@@ -19,10 +19,6 @@
 .button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-.button:not(:disabled):active {
-  transform: translateY(1px);
 }
 
 .fullWidth {

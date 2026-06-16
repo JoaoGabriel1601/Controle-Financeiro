@@ -1,6 +1,8 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { X } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 import styles from './Modal.module.css';
+import { springSheet } from '../../utils/motion';
 
 interface ModalProps {
   open: boolean;
@@ -75,29 +77,43 @@ export function Modal({ open, onClose, title, children, footer, width = 480 }: M
     };
   }, [open]);
 
-  if (!open) return null;
-
   return (
-    <div className={styles.backdrop} onClick={onClose} aria-hidden="true">
-      <div
-        ref={modalRef}
-        className={styles.modal}
-        style={{ maxWidth: typeof width === 'number' ? `${width}px` : width }}
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        tabIndex={-1}
-      >
-        <header className={styles.header}>
-          <h2 id={titleId} className={styles.title}>{title}</h2>
-          <button className={styles.close} onClick={onClose} aria-label="Fechar">
-            <X size={18} />
-          </button>
-        </header>
-        <div className={styles.body}>{children}</div>
-        {footer && <footer className={styles.footer}>{footer}</footer>}
-      </div>
-    </div>
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className={styles.backdrop}
+          onClick={onClose}
+          aria-hidden="true"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
+        >
+          <motion.div
+            ref={modalRef}
+            className={styles.modal}
+            style={{ maxWidth: typeof width === 'number' ? `${width}px` : width }}
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+            tabIndex={-1}
+            initial={{ opacity: 0, y: 24, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 16, scale: 0.97 }}
+            transition={springSheet}
+          >
+            <header className={styles.header}>
+              <h2 id={titleId} className={styles.title}>{title}</h2>
+              <button className={styles.close} onClick={onClose} aria-label="Fechar">
+                <X size={18} />
+              </button>
+            </header>
+            <div className={styles.body}>{children}</div>
+            {footer && <footer className={styles.footer}>{footer}</footer>}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

@@ -8,7 +8,7 @@
   justify-content: center;
   z-index: 100;
   padding: 16px;
-  animation: fadeIn 0.18s ease;
+  /* opacidade animada pelo motion (AnimatePresence). */
 }
 
 .modal {
@@ -20,7 +20,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
-  animation: scaleIn 0.18s ease;
+  /* entrada/saída com mola pelo motion (springSheet). */
   overflow: hidden;
 }
 
