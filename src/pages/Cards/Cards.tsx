@@ -4,7 +4,7 @@ import { CreditCard, Plus, Pencil, Trash2, ChevronDown, CheckCircle2 } from 'luc
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
-import { Input, Select } from '../../components/ui/Input';
+import { Input } from '../../components/ui/Input';
 import { MoneyField } from '../../components/ui/MoneyField';
 import { IconSelect, type IconSelectOption } from '../../components/ui/IconSelect';
 import { Badge } from '../../components/ui/Badge';
@@ -46,6 +46,13 @@ const INSTITUTION_OPTIONS: IconSelectOption[] = [
     icon: <BrandLogo slug={b.slug} size={22} radius={6} />,
   })),
 ];
+
+// Conta de dinheiro vira opção com a logo do banco (institution).
+const cashAccountOption = (a: Account): IconSelectOption => ({
+  value: a.id,
+  label: a.name,
+  icon: <BrandLogo slug={a.institution} size={22} radius={6} />,
+});
 
 interface PayTarget {
   card: Account;
@@ -453,18 +460,16 @@ function CardModal({ card, cashAccounts, onClose }: CardModalProps) {
             onChange={(e) => setDueDay(e.target.value)}
           />
         </div>
-        <Select
+        <IconSelect
           label="Conta que paga a fatura"
+          placeholder="Selecione (opcional)..."
           value={paymentAccountId}
-          onChange={(e) => setPaymentAccountId(e.target.value)}
-        >
-          <option value="">Selecione (opcional)...</option>
-          {cashAccounts.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.name}
-            </option>
-          ))}
-        </Select>
+          onChange={setPaymentAccountId}
+          options={[
+            { value: '', label: 'Selecione (opcional)...' },
+            ...cashAccounts.map(cashAccountOption),
+          ]}
+        />
         <MoneyField
           label={isEdit ? 'Saldo inicial da fatura' : 'Fatura em aberto inicial'}
           value={openingBalance}
@@ -545,14 +550,13 @@ function PayInvoiceModal({ target, cashAccounts, onClose }: PayInvoiceModalProps
             Total da fatura: <strong>{formatCurrency(invoice.total)}</strong>
             {invoice.paidAmount > 0 && <> · já pago {formatCurrency(invoice.paidAmount)}</>}
           </p>
-          <Select label="Pagar com" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-            <option value="">Selecione...</option>
-            {cashAccounts.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </Select>
+          <IconSelect
+            label="Pagar com"
+            placeholder="Selecione..."
+            value={accountId}
+            onChange={setAccountId}
+            options={cashAccounts.map(cashAccountOption)}
+          />
           <div className={styles.formRow}>
             <MoneyField label="Valor" value={amount} onChange={setAmount} />
             <DateField label="Data" value={date} onChange={setDate} />
