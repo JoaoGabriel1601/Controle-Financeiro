@@ -59,10 +59,13 @@
   gap: 14px;
   padding: 12px;
   border-radius: var(--radius-md);
-  transition: background 0.15s ease;
+  transition:
+    background 0.15s ease,
+    transform 0.15s ease;
 }
 .item:hover {
   background: var(--bg-card-hover);
+  transform: translateX(3px);
 }
 
 .itemIcon {

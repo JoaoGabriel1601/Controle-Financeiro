@@ -344,10 +344,10 @@ export function TransactionsPage() {
           />
         </Card>
       ) : (
-        <div className={styles.groups}>
+        <div className={`${styles.groups} u-stagger`}>
           {grouped.map(([day, items]) => (
             <Card key={day} title={day} subtitle={`${items.length} ${items.length === 1 ? 'lançamento' : 'lançamentos'}`}>
-              <div className={styles.list}>
+              <div className={`${styles.list} u-stagger`}>
                 {items.map((tx) => {
                   const cat = findCategory(tx.categoryId);
                   const acc = findAccount(tx.accountId);

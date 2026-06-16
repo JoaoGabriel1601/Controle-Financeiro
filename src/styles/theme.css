@@ -160,3 +160,47 @@ a {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Utilitários de animação reutilizáveis — CSS puro, sem dependências.
+   São classes globais, convivem normalmente com os CSS Modules. */
+.u-animate-in {
+  animation: slideUp 0.35s ease both;
+}
+
+/* Entrada em cascata: aplique no container e cada filho direto entra em
+   sequência. Ideal para listas e grades de cards. */
+.u-stagger > * {
+  animation: slideUp 0.35s ease both;
+}
+.u-stagger > *:nth-child(1) { animation-delay: 0.04s; }
+.u-stagger > *:nth-child(2) { animation-delay: 0.08s; }
+.u-stagger > *:nth-child(3) { animation-delay: 0.12s; }
+.u-stagger > *:nth-child(4) { animation-delay: 0.16s; }
+.u-stagger > *:nth-child(5) { animation-delay: 0.2s; }
+.u-stagger > *:nth-child(6) { animation-delay: 0.24s; }
+.u-stagger > *:nth-child(7) { animation-delay: 0.28s; }
+.u-stagger > *:nth-child(8) { animation-delay: 0.32s; }
+.u-stagger > *:nth-child(n + 9) { animation-delay: 0.36s; }
+
+/* Acessibilidade: respeita quem pediu menos movimento no sistema. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

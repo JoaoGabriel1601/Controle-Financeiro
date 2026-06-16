@@ -131,7 +131,7 @@ export function Dashboard() {
   }
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} u-stagger`}>
       <header className={styles.head}>
         <div>
           <h1 className={styles.title}>
@@ -193,7 +193,7 @@ export function Dashboard() {
             </Link>
           }
         >
-          <div className={styles.recent}>
+          <div className={`${styles.recent} u-stagger`}>
             {cardInvoices.map(({ card, competencia, total }) => (
               <div key={card.id} className={styles.recentItem}>
                 <span className={styles.recentIcon} style={{ background: 'var(--primary-soft)' }}>
@@ -222,7 +222,7 @@ export function Dashboard() {
             </Link>
           }
         >
-          <div className={styles.recent}>
+          <div className={`${styles.recent} u-stagger`}>
             {activeLoans.map((loan) => {
               const remaining = Math.max(0, loan.installmentsTotal - loan.installmentsPaid);
               return (
@@ -320,7 +320,7 @@ export function Dashboard() {
             </Link>
           }
         >
-          <div className={styles.recent}>
+          <div className={`${styles.recent} u-stagger`}>
             {upcoming.map((r) => {
               const cat = r.categoryId ? categoryMap.get(r.categoryId) : undefined;
               const isIncome = r.type === 'income';
@@ -365,7 +365,7 @@ export function Dashboard() {
         {recent.length === 0 ? (
           <EmptyState title="Nenhum lançamento ainda" />
         ) : (
-          <div className={styles.recent}>
+          <div className={`${styles.recent} u-stagger`}>
             {recent.map((tx) => {
               const cat = categoryMap.get(tx.categoryId);
               const acc = accountMap.get(tx.accountId);
