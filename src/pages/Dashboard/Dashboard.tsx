@@ -13,6 +13,7 @@ import {
   Repeat,
 } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
+import { BrandLogo } from '../../components/ui/BrandLogo';
 import { Badge } from '../../components/ui/Badge';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Button } from '../../components/ui/Button';
@@ -196,9 +197,13 @@ export function Dashboard() {
           <div className={`${styles.recent} u-stagger`}>
             {cardInvoices.map(({ card, competencia, total }) => (
               <div key={card.id} className={styles.recentItem}>
-                <span className={styles.recentIcon} style={{ background: 'var(--primary-soft)' }}>
-                  <CreditCard size={16} />
-                </span>
+                {card.brand ? (
+                  <BrandLogo slug={card.brand} size={36} radius={6} />
+                ) : (
+                  <span className={styles.recentIcon} style={{ background: 'var(--primary-soft)' }}>
+                    <CreditCard size={16} />
+                  </span>
+                )}
                 <div className={styles.recentBody}>
                   <strong>{card.name}</strong>
                   <span>Fatura {competenciaLabel(competencia)}</span>
