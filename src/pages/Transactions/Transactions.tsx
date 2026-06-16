@@ -97,11 +97,19 @@ export function TransactionsPage() {
     });
   }, [transactions, search, filterType, filterCategory, filterAccount, filterCard, filterMethod]);
 
+  const creditCards = useMemo(() => accounts.filter((a) => a.type === 'credit'), [accounts]);
+  const cashAccounts = useMemo(() => accounts.filter((a) => a.type !== 'credit'), [accounts]);
+
   const openNew = () => {
     setEditing(null);
     const firstExpense = categories.find((c) => c.type === 'expense');
-    const firstCash = accounts.find((a) => a.type !== 'credit');
-    setForm(emptyForm(firstExpense?.id ?? '', firstCash?.id ?? accounts[0]?.id ?? '', accounts[1]?.id ?? ''));
+    setForm(
+      emptyForm(
+        firstExpense?.id ?? '',
+        cashAccounts[0]?.id ?? accounts[0]?.id ?? '',
+        cashAccounts[1]?.id ?? '',
+      ),
+    );
     setModalOpen(true);
   };
 
@@ -120,9 +128,6 @@ export function TransactionsPage() {
     });
     setModalOpen(true);
   };
-
-  const creditCards = useMemo(() => accounts.filter((a) => a.type === 'credit'), [accounts]);
-  const cashAccounts = useMemo(() => accounts.filter((a) => a.type !== 'credit'), [accounts]);
 
   // Opções dos filtros com ícone: logo do banco (institution), bandeira do
   // cartão (brand) e ícone do método de pagamento.
@@ -165,9 +170,11 @@ export function TransactionsPage() {
   const selectedAccount = accounts.find((a) => a.id === form.accountId);
   const isCreditPurchase = form.type === 'expense' && form.paymentMethod === 'credit';
 
-  // Conjunto de contas válidas para o (tipo, método) atual.
+  // Conjunto de contas válidas para o (tipo, método) atual. Cartão só entra na
+  // despesa com método crédito; receita e transferência usam contas de dinheiro
+  // (pagar fatura tem fluxo próprio em Cartões, que registra a competência).
   const poolFor = (type: TransactionType, method: PaymentMethod) =>
-    type === 'expense' ? (method === 'credit' ? creditCards : cashAccounts) : accounts;
+    type === 'expense' ? (method === 'credit' ? creditCards : cashAccounts) : cashAccounts;
   // Mantém a conta selecionada coerente ao trocar tipo/método.
   const reconcileAccount = (type: TransactionType, method: PaymentMethod, currentId: string) => {
     const pool = poolFor(type, method);
@@ -587,7 +594,7 @@ export function TransactionsPage() {
               placeholder="Selecione..."
               value={form.toAccountId}
               onChange={(v) => setForm({ ...form, toAccountId: v })}
-              options={accounts.map(accountToOption)}
+              options={cashAccounts.map(accountToOption)}
             />
           )}
 
