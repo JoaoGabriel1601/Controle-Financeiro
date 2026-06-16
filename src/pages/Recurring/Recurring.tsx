@@ -4,6 +4,7 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Input, Select } from '../../components/ui/Input';
+import { MoneyField } from '../../components/ui/MoneyField';
 import { Badge } from '../../components/ui/Badge';
 import { AccountOptions } from '../../components/ui/AccountOptions';
 import { DateField } from '../../components/ui/DateField';
@@ -15,7 +16,6 @@ import { toast } from '../../components/ui/toastStore';
 import { useDataStore } from '../../stores/dataStore';
 import { recurringService } from '../../services/recurring.service';
 import { dateInputValue, formatCurrency, formatDate, parseDateInput } from '../../utils/format';
-import { centsToReais, parseMoneyInput, reaisToCents } from '../../utils/money';
 import type { Frequency, PaymentMethod, RecurringTransaction, RecurringInput } from '../../types';
 import styles from './Recurring.module.css';
 
@@ -27,7 +27,7 @@ const FREQUENCY_LABEL: Record<Frequency, string> = {
 
 interface FormState {
   type: 'income' | 'expense';
-  amount: string;
+  amountCents: number;
   description: string;
   categoryId: string;
   accountId: string;
@@ -39,7 +39,7 @@ interface FormState {
 
 const emptyForm = (categoryId: string, accountId: string): FormState => ({
   type: 'expense',
-  amount: '',
+  amountCents: 0,
   description: '',
   categoryId,
   accountId,
@@ -98,7 +98,7 @@ export function RecurringPage() {
     setEditing(r);
     setForm({
       type: r.type,
-      amount: String(centsToReais(r.amount)),
+      amountCents: r.amount,
       description: r.description,
       categoryId: r.categoryId ?? '',
       accountId: r.accountId,
@@ -112,7 +112,7 @@ export function RecurringPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const amount = reaisToCents(parseMoneyInput(form.amount));
+    const amount = form.amountCents;
     if (!amount || amount <= 0) return toast.error('Informe um valor maior que zero');
     if (!form.description.trim()) return toast.error('Informe uma descrição');
     if (!form.categoryId) return toast.error('Selecione uma categoria');
@@ -297,13 +297,10 @@ export function RecurringPage() {
           />
 
           <div className={styles.formRow}>
-            <Input
+            <MoneyField
               label="Valor"
-              type="text"
-              inputMode="decimal"
-              placeholder="0,00"
-              value={form.amount}
-              onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              value={form.amountCents}
+              onChange={(cents) => setForm({ ...form, amountCents: cents })}
             />
             <Select
               label="Frequência"

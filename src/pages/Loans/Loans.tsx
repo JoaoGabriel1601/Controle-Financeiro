@@ -5,6 +5,7 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Input, Select } from '../../components/ui/Input';
+import { MoneyField } from '../../components/ui/MoneyField';
 import { DateField } from '../../components/ui/DateField';
 import { Badge } from '../../components/ui/Badge';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -14,7 +15,7 @@ import { useDataStore } from '../../stores/dataStore';
 import { loanService } from '../../services/loan.service';
 import { transactionService } from '../../services/transaction.service';
 import { dateInputValue, formatCurrency, formatDate, parseDateInput } from '../../utils/format';
-import { parseMoneyInput, reaisToCents, roundCents } from '../../utils/money';
+import { roundCents } from '../../utils/money';
 import type { Loan, LoanInput } from '../../types';
 import styles from './Loans.module.css';
 
@@ -29,7 +30,7 @@ function nextMonthly(due: Date, dayOfMonth: number): Date {
 interface FormState {
   name: string;
   lender: string;
-  principal: string;
+  principalCents: number;
   installmentsTotal: string;
   firstDueDate: string;
   accountId: string;
@@ -39,7 +40,7 @@ interface FormState {
 const emptyForm = (accountId: string): FormState => ({
   name: '',
   lender: '',
-  principal: '',
+  principalCents: 0,
   installmentsTotal: '12',
   firstDueDate: dateInputValue(new Date()),
   accountId,
@@ -66,7 +67,7 @@ export function LoansPage() {
   const [payingId, setPayingId] = useState<string | null>(null);
 
   const installmentPreview = (() => {
-    const cents = reaisToCents(parseMoneyInput(form.principal));
+    const cents = form.principalCents;
     const n = Math.trunc(Number(form.installmentsTotal));
     if (!cents || !n || n < 1) return undefined;
     return `${n}× de ${formatCurrency(roundCents(cents / n))}`;
@@ -79,7 +80,7 @@ export function LoansPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const principal = reaisToCents(parseMoneyInput(form.principal));
+    const principal = form.principalCents;
     const total = Math.trunc(Number(form.installmentsTotal));
     if (!form.name.trim()) return toast.error('Informe o nome do empréstimo');
     if (!principal || principal <= 0) return toast.error('Informe o valor total');
@@ -311,13 +312,10 @@ export function LoansPage() {
             onChange={(e) => setForm({ ...form, lender: e.target.value })}
           />
           <div className={styles.formRow}>
-            <Input
+            <MoneyField
               label="Valor total"
-              type="text"
-              inputMode="decimal"
-              placeholder="0,00"
-              value={form.principal}
-              onChange={(e) => setForm({ ...form, principal: e.target.value })}
+              value={form.principalCents}
+              onChange={(cents) => setForm({ ...form, principalCents: cents })}
             />
             <Input
               label="Nº de parcelas"

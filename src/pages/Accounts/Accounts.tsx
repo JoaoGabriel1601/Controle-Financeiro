@@ -4,6 +4,7 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Input, Select } from '../../components/ui/Input';
+import { MoneyField } from '../../components/ui/MoneyField';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { BrandLogo } from '../../components/ui/BrandLogo';
@@ -11,7 +12,6 @@ import { toast } from '../../components/ui/toastStore';
 import { useDataStore } from '../../stores/dataStore';
 import { accountService } from '../../services/account.service';
 import { formatCurrency } from '../../utils/format';
-import { centsToReais, parseMoneyInput, reaisToCents } from '../../utils/money';
 import { computeAccountBalance, computeAvailableBalance } from '../../utils/stats';
 import { INSTITUTIONS } from '../../utils/brands';
 import type { Account, AccountInput, AccountType } from '../../types';
@@ -35,7 +35,7 @@ const TYPE_ICONS: Record<CashAccountType, React.ReactNode> = {
 interface FormState {
   name: string;
   type: CashAccountType;
-  balance: string;
+  balanceCents: number;
   currency: string;
   institution: string;
 }
@@ -43,7 +43,7 @@ interface FormState {
 const EMPTY: FormState = {
   name: '',
   type: 'checking',
-  balance: '',
+  balanceCents: 0,
   currency: 'BRL',
   institution: '',
 };
@@ -93,7 +93,7 @@ export function AccountsPage() {
     setForm({
       name: account.name,
       type: (account.type === 'credit' ? 'checking' : account.type) as CashAccountType,
-      balance: String(centsToReais(account.balance)),
+      balanceCents: account.balance,
       currency: account.currency,
       institution: account.institution ?? '',
     });
@@ -106,12 +106,11 @@ export function AccountsPage() {
 
     setSubmitting(true);
     try {
-      const parsed = parseMoneyInput(form.balance);
       const payload: AccountInput = {
         name: form.name,
         type: form.type,
         currency: form.currency,
-        balance: Number.isNaN(parsed) ? 0 : reaisToCents(parsed),
+        balance: form.balanceCents,
         institution: form.institution || null,
       };
       if (editing) {
@@ -256,13 +255,10 @@ export function AccountsPage() {
             ))}
           </Select>
 
-          <Input
-            type="text"
-            inputMode="decimal"
+          <MoneyField
             label={editing ? 'Saldo inicial registrado' : 'Saldo inicial'}
-            placeholder="0,00"
-            value={form.balance}
-            onChange={(e) => setForm({ ...form, balance: e.target.value })}
+            value={form.balanceCents}
+            onChange={(cents) => setForm({ ...form, balanceCents: cents })}
             hint="O saldo final é calculado adicionando suas transações."
           />
           <Select

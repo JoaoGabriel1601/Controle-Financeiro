@@ -3,7 +3,8 @@ import { Plus, Pencil, Trash2, Target, AlertTriangle } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
-import { Input, Select } from '../../components/ui/Input';
+import { Select } from '../../components/ui/Input';
+import { MoneyField } from '../../components/ui/MoneyField';
 import { Badge } from '../../components/ui/Badge';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
@@ -11,7 +12,6 @@ import { toast } from '../../components/ui/toastStore';
 import { useDataStore } from '../../stores/dataStore';
 import { budgetService } from '../../services/budget.service';
 import { formatCurrency, toJsDate } from '../../utils/format';
-import { centsToReais, parseMoneyInput, reaisToCents } from '../../utils/money';
 import type { Budget, BudgetInput } from '../../types';
 import styles from './Budgets.module.css';
 
@@ -26,14 +26,14 @@ const CURRENT_YEAR = currentDate.getFullYear();
 
 interface FormState {
   categoryId: string;
-  limitAmount: string;
+  limitAmountCents: number;
   month: number;
   year: number;
 }
 
 const emptyForm = (categoryId: string): FormState => ({
   categoryId,
-  limitAmount: '',
+  limitAmountCents: 0,
   month: CURRENT_MONTH,
   year: CURRENT_YEAR,
 });
@@ -81,7 +81,7 @@ export function BudgetsPage() {
     setEditing(b);
     setForm({
       categoryId: b.categoryId,
-      limitAmount: String(centsToReais(b.limitAmount)),
+      limitAmountCents: b.limitAmount,
       month: b.month,
       year: b.year,
     });
@@ -90,7 +90,7 @@ export function BudgetsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const limitAmount = reaisToCents(parseMoneyInput(form.limitAmount));
+    const limitAmount = form.limitAmountCents;
     if (!form.categoryId) return toast.error('Selecione uma categoria');
     if (!limitAmount || limitAmount <= 0) return toast.error('Informe um valor maior que zero');
 
@@ -105,7 +105,12 @@ export function BudgetsPage() {
 
     setSubmitting(true);
     try {
-      const payload: BudgetInput = { ...form, limitAmount };
+      const payload: BudgetInput = {
+        categoryId: form.categoryId,
+        limitAmount,
+        month: form.month,
+        year: form.year,
+      };
       if (editing) {
         await budgetService.update(editing.id, payload);
         toast.success('Orçamento atualizado');
@@ -273,13 +278,10 @@ export function BudgetsPage() {
               </option>
             ))}
           </Select>
-          <Input
-            type="text"
-            inputMode="decimal"
+          <MoneyField
             label="Limite mensal"
-            placeholder="0,00"
-            value={form.limitAmount}
-            onChange={(e) => setForm({ ...form, limitAmount: e.target.value })}
+            value={form.limitAmountCents}
+            onChange={(cents) => setForm({ ...form, limitAmountCents: cents })}
           />
           <div className={styles.formRow}>
             <Select

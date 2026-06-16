@@ -5,6 +5,7 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Input, Select } from '../../components/ui/Input';
+import { MoneyField } from '../../components/ui/MoneyField';
 import { Badge } from '../../components/ui/Badge';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
@@ -16,7 +17,6 @@ import { useDataStore } from '../../stores/dataStore';
 import { transactionService } from '../../services/transaction.service';
 import { accountService } from '../../services/account.service';
 import { formatCurrency, formatDate, dateInputValue, parseDateInput } from '../../utils/format';
-import { centsToReais, parseMoneyInput, reaisToCents } from '../../utils/money';
 import {
   availableLimit,
   buildInvoices,
@@ -328,18 +328,14 @@ interface CardModalProps {
 function CardModal({ card, cashAccounts, onClose }: CardModalProps) {
   const isEdit = !!card;
   const [name, setName] = useState(card?.name ?? '');
-  const [creditLimit, setCreditLimit] = useState(
-    card?.creditLimit != null ? String(centsToReais(card.creditLimit)) : '',
-  );
+  const [creditLimit, setCreditLimit] = useState<number>(card?.creditLimit ?? 0);
   const [closingDay, setClosingDay] = useState(card?.closingDay != null ? String(card.closingDay) : '');
   const [dueDay, setDueDay] = useState(card?.dueDay != null ? String(card.dueDay) : '');
   const [brand, setBrand] = useState(card?.brand ?? '');
   const [institution, setInstitution] = useState(card?.institution ?? '');
   const [paymentAccountId, setPaymentAccountId] = useState(card?.paymentAccountId ?? '');
   // Saldo do cartão é guardado negativo (dívida); exibe o valor positivo.
-  const [openingBalance, setOpeningBalance] = useState(
-    card ? String(centsToReais(-card.balance)) : '',
-  );
+  const [openingBalance, setOpeningBalance] = useState<number>(card ? -card.balance : 0);
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -354,16 +350,14 @@ function CardModal({ card, cashAccounts, onClose }: CardModalProps) {
 
     setSubmitting(true);
     try {
-      const limitParsed = parseMoneyInput(creditLimit);
-      const openingParsed = parseMoneyInput(openingBalance);
-      const openingCents = Number.isNaN(openingParsed) ? 0 : reaisToCents(openingParsed);
       const payload: AccountInput = {
         name: name.trim(),
         type: 'credit',
         currency: 'BRL',
         // Fatura em aberto inicial é dívida → saldo negativo.
-        balance: -openingCents,
-        creditLimit: !Number.isNaN(limitParsed) ? reaisToCents(limitParsed) : null,
+        balance: -openingBalance,
+        // Limite 0 = "sem limite definido".
+        creditLimit: creditLimit > 0 ? creditLimit : null,
         closingDay: closing,
         dueDay: due,
         paymentAccountId: paymentAccountId || null,
@@ -427,14 +421,7 @@ function CardModal({ card, cashAccounts, onClose }: CardModalProps) {
             ))}
           </Select>
         </div>
-        <Input
-          type="text"
-          inputMode="decimal"
-          label="Limite do cartão"
-          placeholder="0,00"
-          value={creditLimit}
-          onChange={(e) => setCreditLimit(e.target.value)}
-        />
+        <MoneyField label="Limite do cartão" value={creditLimit} onChange={setCreditLimit} />
         <div className={styles.formRow}>
           <Input
             type="number"
@@ -467,13 +454,10 @@ function CardModal({ card, cashAccounts, onClose }: CardModalProps) {
             </option>
           ))}
         </Select>
-        <Input
-          type="text"
-          inputMode="decimal"
+        <MoneyField
           label={isEdit ? 'Saldo inicial da fatura' : 'Fatura em aberto inicial'}
-          placeholder="0,00"
           value={openingBalance}
-          onChange={(e) => setOpeningBalance(e.target.value)}
+          onChange={setOpeningBalance}
           hint="Saldo de partida do cartão; os gastos lançados nas transações somam a este valor."
         />
       </form>
@@ -492,13 +476,13 @@ function PayInvoiceModal({ target, cashAccounts, onClose }: PayInvoiceModalProps
   const remaining = Math.max(0, invoice.total - invoice.paidAmount);
 
   const [accountId, setAccountId] = useState(card.paymentAccountId ?? cashAccounts[0]?.id ?? '');
-  const [amount, setAmount] = useState(String(centsToReais(remaining)));
+  const [amount, setAmount] = useState<number>(remaining);
   const [date, setDate] = useState(dateInputValue(new Date()));
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cents = reaisToCents(parseMoneyInput(amount));
+    const cents = amount;
     if (!accountId) return toast.error('Selecione a conta de origem');
     if (!cents || cents <= 0) return toast.error('Informe um valor maior que zero');
 
@@ -559,14 +543,7 @@ function PayInvoiceModal({ target, cashAccounts, onClose }: PayInvoiceModalProps
             ))}
           </Select>
           <div className={styles.formRow}>
-            <Input
-              label="Valor"
-              type="text"
-              inputMode="decimal"
-              placeholder="0,00"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-            />
+            <MoneyField label="Valor" value={amount} onChange={setAmount} />
             <DateField label="Data" value={date} onChange={setDate} />
           </div>
         </form>
