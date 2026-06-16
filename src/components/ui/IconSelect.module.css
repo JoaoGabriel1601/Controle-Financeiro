@@ -1,0 +1,130 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.inputWrap {
+  display: flex;
+  align-items: center;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.inputWrap.open {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+
+.input {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  height: 40px;
+  padding: 0 12px 0 14px;
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+  border-radius: var(--radius-md);
+  text-align: left;
+}
+
+.triggerIcon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.placeholder {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-soft);
+}
+
+.chevron {
+  color: var(--text-soft);
+  flex-shrink: 0;
+}
+
+.popover {
+  position: fixed;
+  z-index: 1000;
+  padding: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  overflow-y: auto;
+  animation: fadeIn 0.12s ease;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  color: var(--text);
+  text-align: left;
+  transition: background 0.12s ease;
+}
+.option:hover {
+  background: var(--bg-card-hover);
+}
+.optionActive {
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-weight: 600;
+}
+.optionActive:hover {
+  background: var(--primary-soft);
+}
+
+.optionIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.optionLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.optionCheck {
+  flex-shrink: 0;
+  color: var(--primary);
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--text-soft);
+}

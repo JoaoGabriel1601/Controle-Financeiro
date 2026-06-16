@@ -1,14 +1,27 @@
 import { useMemo, useState } from 'react';
 import { addMonths } from 'date-fns';
-import { Plus, Pencil, Trash2, ArrowLeftRight, Search, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  ArrowLeftRight,
+  Search,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Landmark,
+  CreditCard,
+  Wallet,
+} from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Input, Select } from '../../components/ui/Input';
+import { IconSelect, type IconSelectOption } from '../../components/ui/IconSelect';
 import { Badge } from '../../components/ui/Badge';
-import { AccountOptions } from '../../components/ui/AccountOptions';
+import { BrandLogo } from '../../components/ui/BrandLogo';
 import { DateField } from '../../components/ui/DateField';
 import { PaymentMethodSelector } from '../../components/ui/PaymentMethodSelector';
+import { PAYMENT_METHOD_ICONS, PAYMENT_METHOD_ORDER } from '../../components/ui/paymentMethodIcons';
 import { METHOD_LABELS } from '../../utils/paymentMethods';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
@@ -17,8 +30,16 @@ import { useDataStore } from '../../stores/dataStore';
 import { transactionService } from '../../services/transaction.service';
 import { dateInputValue, formatCurrency, formatDate, parseDateInput, toJsDate } from '../../utils/format';
 import { centsToReais, parseMoneyInput, reaisToCents } from '../../utils/money';
-import type { PaymentMethod, Transaction, TransactionType } from '../../types';
+import type { Account, PaymentMethod, Transaction, TransactionType } from '../../types';
 import styles from './Transactions.module.css';
+
+// Conta vira opção do IconSelect com a logo certa: banco (institution) para
+// contas de dinheiro, bandeira (brand) para cartões.
+const accountToOption = (a: Account): IconSelectOption => ({
+  value: a.id,
+  label: a.name,
+  icon: <BrandLogo slug={a.type === 'credit' ? a.brand : a.institution} size={22} radius={6} />,
+});
 
 interface FormState {
   type: TransactionType;
@@ -102,6 +123,44 @@ export function TransactionsPage() {
 
   const creditCards = useMemo(() => accounts.filter((a) => a.type === 'credit'), [accounts]);
   const cashAccounts = useMemo(() => accounts.filter((a) => a.type !== 'credit'), [accounts]);
+
+  // Opções dos filtros com ícone: logo do banco (institution), bandeira do
+  // cartão (brand) e ícone do método de pagamento.
+  const accountFilterOptions = useMemo<IconSelectOption[]>(
+    () => [
+      { value: 'all', label: 'Todas as contas', icon: <Landmark size={18} /> },
+      ...cashAccounts.map((a) => ({
+        value: a.id,
+        label: a.name,
+        icon: <BrandLogo slug={a.institution} size={22} radius={6} />,
+      })),
+    ],
+    [cashAccounts],
+  );
+
+  const cardFilterOptions = useMemo<IconSelectOption[]>(
+    () => [
+      { value: 'all', label: 'Todos os cartões', icon: <CreditCard size={18} /> },
+      ...creditCards.map((a) => ({
+        value: a.id,
+        label: a.name,
+        icon: <BrandLogo slug={a.brand} size={20} radius={4} />,
+      })),
+    ],
+    [creditCards],
+  );
+
+  const methodFilterOptions = useMemo<IconSelectOption[]>(
+    () => [
+      { value: 'all', label: 'Todos os métodos', icon: <Wallet size={18} /> },
+      ...PAYMENT_METHOD_ORDER.map((m) => ({
+        value: m,
+        label: METHOD_LABELS[m],
+        icon: PAYMENT_METHOD_ICONS[m],
+      })),
+    ],
+    [],
+  );
 
   const selectedAccount = accounts.find((a) => a.id === form.accountId);
   const isCreditPurchase = form.type === 'expense' && form.paymentMethod === 'credit';
@@ -229,6 +288,16 @@ export function TransactionsPage() {
     [categories, form.type],
   );
 
+  const categoryFormOptions = useMemo<IconSelectOption[]>(
+    () =>
+      categoriesForType.map((c) => ({
+        value: c.id,
+        label: c.name,
+        icon: <span className={styles.categoryEmoji}>{c.icon}</span>,
+      })),
+    [categoriesForType],
+  );
+
   const grouped = useMemo(() => {
     const map = new Map<string, Transaction[]>();
     filtered.forEach((tx) => {
@@ -280,47 +349,29 @@ export function TransactionsPage() {
               </option>
             ))}
           </Select>
-          <Select
+          <IconSelect
             value={filterAccount}
-            onChange={(e) => {
-              setFilterAccount(e.target.value);
-              if (e.target.value !== 'all') setFilterCard('all');
+            onChange={(v) => {
+              setFilterAccount(v);
+              if (v !== 'all') setFilterCard('all');
             }}
-          >
-            <option value="all">Todas as contas</option>
-            {cashAccounts.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </Select>
+            options={accountFilterOptions}
+          />
           {creditCards.length > 0 && (
-            <Select
+            <IconSelect
               value={filterCard}
-              onChange={(e) => {
-                setFilterCard(e.target.value);
-                if (e.target.value !== 'all') setFilterAccount('all');
+              onChange={(v) => {
+                setFilterCard(v);
+                if (v !== 'all') setFilterAccount('all');
               }}
-            >
-              <option value="all">Todos os cartões</option>
-              {creditCards.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </Select>
+              options={cardFilterOptions}
+            />
           )}
-          <Select
+          <IconSelect
             value={filterMethod}
-            onChange={(e) => setFilterMethod(e.target.value as 'all' | PaymentMethod)}
-          >
-            <option value="all">Todos os métodos</option>
-            {(Object.keys(METHOD_LABELS) as PaymentMethod[]).map((m) => (
-              <option key={m} value={m}>
-                {METHOD_LABELS[m]}
-              </option>
-            ))}
-          </Select>
+            onChange={(v) => setFilterMethod(v as 'all' | PaymentMethod)}
+            options={methodFilterOptions}
+          />
         </div>
       </Card>
 
@@ -497,18 +548,13 @@ export function TransactionsPage() {
           </div>
 
           {form.type !== 'transfer' && (
-            <Select
+            <IconSelect
               label="Categoria"
+              placeholder="Selecione..."
               value={form.categoryId}
-              onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
-            >
-              <option value="">Selecione...</option>
-              {categoriesForType.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.icon} {c.name}
-                </option>
-              ))}
-            </Select>
+              onChange={(v) => setForm({ ...form, categoryId: v })}
+              options={categoryFormOptions}
+            />
           )}
 
           {form.type === 'expense' && (
@@ -525,29 +571,27 @@ export function TransactionsPage() {
             />
           )}
 
-          <Select
+          <IconSelect
             label={form.type === 'transfer' ? 'Conta de origem' : isCreditPurchase ? 'Cartão' : 'Conta'}
+            placeholder="Selecione..."
             value={form.accountId}
-            onChange={(e) => setForm({ ...form, accountId: e.target.value })}
+            onChange={(v) => setForm({ ...form, accountId: v })}
+            options={accountOptions.map(accountToOption)}
             hint={
               isCreditPurchase && creditCards.length === 0
                 ? 'Nenhum cartão cadastrado — cadastre um em Cartões.'
                 : undefined
             }
-          >
-            <option value="">Selecione...</option>
-            <AccountOptions accounts={accountOptions} />
-          </Select>
+          />
 
           {form.type === 'transfer' && (
-            <Select
+            <IconSelect
               label="Conta de destino"
+              placeholder="Selecione..."
               value={form.toAccountId}
-              onChange={(e) => setForm({ ...form, toAccountId: e.target.value })}
-            >
-              <option value="">Selecione...</option>
-              <AccountOptions accounts={accounts} />
-            </Select>
+              onChange={(v) => setForm({ ...form, toAccountId: v })}
+              options={accounts.map(accountToOption)}
+            />
           )}
 
           {canInstall && (

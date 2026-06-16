@@ -1,28 +1,7 @@
-import type { ReactNode } from 'react';
-import { CreditCard, Banknote, Wallet, Barcode } from 'lucide-react';
-import { siPix } from 'simple-icons';
 import type { PaymentMethod } from '../../types';
 import { METHOD_LABELS } from '../../utils/paymentMethods';
+import { PAYMENT_METHOD_ICONS, PAYMENT_METHOD_ORDER } from './paymentMethodIcons';
 import styles from './PaymentMethodSelector.module.css';
-
-/** Logo oficial do PIX, na cor da marca (teal). */
-function PixIcon() {
-  return (
-    <svg role="img" aria-label="PIX" viewBox="0 0 24 24" width={18} height={18} fill="#32BCAD">
-      <path d={siPix.path} />
-    </svg>
-  );
-}
-
-// Ordem e ícone de cada método. "credit" usa conta de cartão; os demais saem
-// de uma conta de dinheiro.
-const METHODS: { value: PaymentMethod; icon: ReactNode }[] = [
-  { value: 'pix', icon: <PixIcon /> },
-  { value: 'debit', icon: <CreditCard size={18} /> },
-  { value: 'cash', icon: <Banknote size={18} /> },
-  { value: 'credit', icon: <Wallet size={18} /> },
-  { value: 'boleto', icon: <Barcode size={18} /> },
-];
 
 interface PaymentMethodSelectorProps {
   value: PaymentMethod;
@@ -40,14 +19,14 @@ export function PaymentMethodSelector({
     <div className={styles.field}>
       <span className={styles.fieldLabel}>{label}</span>
       <div className={styles.grid}>
-        {METHODS.map(({ value: method, icon }) => (
+        {PAYMENT_METHOD_ORDER.map((method) => (
           <button
             key={method}
             type="button"
             onClick={() => onChange(method)}
             className={`${styles.btn} ${value === method ? styles.btnActive : ''}`}
           >
-            {icon}
+            {PAYMENT_METHOD_ICONS[method]}
             <span>{METHOD_LABELS[method]}</span>
           </button>
         ))}
