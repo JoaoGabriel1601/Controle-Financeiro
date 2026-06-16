@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Input, Select } from '../../components/ui/Input';
 import { MoneyField } from '../../components/ui/MoneyField';
+import { IconSelect, type IconSelectOption } from '../../components/ui/IconSelect';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { BrandLogo } from '../../components/ui/BrandLogo';
@@ -47,6 +48,16 @@ const EMPTY: FormState = {
   currency: 'BRL',
   institution: '',
 };
+
+// Opções do seletor de banco/fintech com a logo ao lado do nome.
+const INSTITUTION_OPTIONS: IconSelectOption[] = [
+  { value: '', label: 'Nenhum / outro' },
+  ...INSTITUTIONS.map((b) => ({
+    value: b.slug,
+    label: b.label,
+    icon: <BrandLogo slug={b.slug} size={22} radius={6} />,
+  })),
+];
 
 export function AccountsPage() {
   const accounts = useDataStore((s) => s.accounts);
@@ -244,16 +255,12 @@ export function AccountsPage() {
             ))}
           </Select>
 
-          <Select
+          <IconSelect
             label="Banco / Fintech"
             value={form.institution}
-            onChange={(e) => setForm({ ...form, institution: e.target.value })}
-          >
-            <option value="">Nenhum / outro</option>
-            {INSTITUTIONS.map((b) => (
-              <option key={b.slug} value={b.slug}>{b.label}</option>
-            ))}
-          </Select>
+            onChange={(v) => setForm({ ...form, institution: v })}
+            options={INSTITUTION_OPTIONS}
+          />
 
           <MoneyField
             label={editing ? 'Saldo inicial registrado' : 'Saldo inicial'}

@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Input, Select } from '../../components/ui/Input';
 import { MoneyField } from '../../components/ui/MoneyField';
+import { IconSelect, type IconSelectOption } from '../../components/ui/IconSelect';
 import { Badge } from '../../components/ui/Badge';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
@@ -26,6 +27,25 @@ import {
 } from '../../utils/invoices';
 import type { Account, AccountInput, Invoice, Transaction } from '../../types';
 import styles from './Cards.module.css';
+
+// Opções dos seletores de bandeira e banco/fintech, com a logo ao lado do nome.
+const BRAND_OPTIONS: IconSelectOption[] = [
+  { value: '', label: 'Nenhuma' },
+  ...CARD_BRANDS.map((b) => ({
+    value: b.slug,
+    label: b.label,
+    icon: <BrandLogo slug={b.slug} size={22} radius={4} />,
+  })),
+];
+
+const INSTITUTION_OPTIONS: IconSelectOption[] = [
+  { value: '', label: 'Nenhum' },
+  ...INSTITUTIONS.map((b) => ({
+    value: b.slug,
+    label: b.label,
+    icon: <BrandLogo slug={b.slug} size={22} radius={6} />,
+  })),
+];
 
 interface PayTarget {
   card: Account;
@@ -404,22 +424,13 @@ function CardModal({ card, cashAccounts, onClose }: CardModalProps) {
           autoFocus
         />
         <div className={styles.formRow}>
-          <Select label="Bandeira" value={brand} onChange={(e) => setBrand(e.target.value)}>
-            <option value="">Nenhuma</option>
-            {CARD_BRANDS.map((b) => (
-              <option key={b.slug} value={b.slug}>{b.label}</option>
-            ))}
-          </Select>
-          <Select
+          <IconSelect label="Bandeira" value={brand} onChange={setBrand} options={BRAND_OPTIONS} />
+          <IconSelect
             label="Banco / Fintech"
             value={institution}
-            onChange={(e) => setInstitution(e.target.value)}
-          >
-            <option value="">Nenhum</option>
-            {INSTITUTIONS.map((b) => (
-              <option key={b.slug} value={b.slug}>{b.label}</option>
-            ))}
-          </Select>
+            onChange={setInstitution}
+            options={INSTITUTION_OPTIONS}
+          />
         </div>
         <MoneyField label="Limite do cartão" value={creditLimit} onChange={setCreditLimit} />
         <div className={styles.formRow}>
