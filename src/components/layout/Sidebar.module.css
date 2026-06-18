@@ -65,8 +65,23 @@
   padding: 14px 12px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 16px;
   overflow-y: auto;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sectionLabel {
+  padding: 0 12px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-soft);
 }
 
 .link {

@@ -19,17 +19,37 @@ interface SidebarProps {
   onMobileClose: () => void;
 }
 
-const NAV_ITEMS = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/transacoes', label: 'Transações', icon: ArrowLeftRight },
-  { to: '/categorias', label: 'Categorias', icon: Tags },
-  { to: '/contas', label: 'Contas', icon: Wallet },
-  { to: '/cartoes', label: 'Cartões', icon: CreditCard },
-  { to: '/emprestimos', label: 'Empréstimos', icon: Landmark },
-  { to: '/orcamentos', label: 'Orçamentos', icon: Target },
-  { to: '/recorrentes', label: 'Recorrentes', icon: Repeat },
-  { to: '/relatorios', label: 'Relatórios', icon: FileText },
-  { to: '/configuracoes', label: 'Configurações', icon: Settings },
+const NAV_SECTIONS = [
+  {
+    label: 'Visão geral',
+    items: [
+      { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
+      { to: '/relatorios', label: 'Relatórios', icon: FileText },
+    ],
+  },
+  {
+    label: 'Lançamentos',
+    items: [
+      { to: '/transacoes', label: 'Transações', icon: ArrowLeftRight },
+      { to: '/recorrentes', label: 'Recorrentes', icon: Repeat },
+    ],
+  },
+  {
+    label: 'Carteira',
+    items: [
+      { to: '/contas', label: 'Contas', icon: Wallet },
+      { to: '/cartoes', label: 'Cartões', icon: CreditCard },
+      { to: '/emprestimos', label: 'Empréstimos', icon: Landmark },
+      { to: '/orcamentos', label: 'Orçamentos', icon: Target },
+    ],
+  },
+  {
+    label: 'Configuração',
+    items: [
+      { to: '/categorias', label: 'Categorias', icon: Tags },
+      { to: '/configuracoes', label: 'Configurações', icon: Settings },
+    ],
+  },
 ];
 
 export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
@@ -49,21 +69,26 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
         </div>
 
         <nav className={styles.nav}>
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            return (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.end}
-                onClick={onMobileClose}
-                className={({ isActive }) => `${styles.link} ${isActive ? styles.active : ''}`}
-              >
-                <Icon size={18} />
-                <span>{item.label}</span>
-              </NavLink>
-            );
-          })}
+          {NAV_SECTIONS.map((section) => (
+            <div key={section.label} className={styles.section}>
+              <span className={styles.sectionLabel}>{section.label}</span>
+              {section.items.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.end}
+                    onClick={onMobileClose}
+                    className={({ isActive }) => `${styles.link} ${isActive ? styles.active : ''}`}
+                  >
+                    <Icon size={18} />
+                    <span>{item.label}</span>
+                  </NavLink>
+                );
+              })}
+            </div>
+          ))}
         </nav>
 
         <div className={styles.footer}>

@@ -1,6 +1,7 @@
-import { Moon, Sun, LogOut, User, Mail, Smartphone } from 'lucide-react';
+import { Moon, Sun, LogOut, User, Mail } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
+import { InstallApp } from '../../components/ui/InstallApp';
 import { useAuthStore } from '../../stores/authStore';
 import { useThemeStore } from '../../stores/themeStore';
 import { authService } from '../../services/auth.service';
@@ -67,24 +68,7 @@ export function SettingsPage() {
         </div>
       </Card>
 
-      <Card title="Aplicativo móvel" subtitle="Instale o app no seu dispositivo">
-        <div className={styles.mobileList}>
-          <div className={styles.mobileRow}>
-            <Smartphone size={28} />
-            <div>
-              <strong>Em breve no Android</strong>
-              <span>O APK estará disponível em uma próxima versão.</span>
-            </div>
-          </div>
-          <div className={styles.mobileRow}>
-            <Smartphone size={28} />
-            <div>
-              <strong>Em breve no iOS</strong>
-              <span>O app para iPhone estará disponível em uma próxima versão.</span>
-            </div>
-          </div>
-        </div>
-      </Card>
+      <InstallApp />
 
       <Card title="Conta" subtitle="Encerrar sessão atual">
         <Button variant="danger" leftIcon={<LogOut size={16} />} onClick={handleLogout}>

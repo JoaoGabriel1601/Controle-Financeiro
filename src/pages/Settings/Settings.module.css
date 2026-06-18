@@ -91,27 +91,3 @@
   background: var(--primary-soft);
   color: var(--primary);
 }
-
-.mobileList {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-.mobileRow {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  color: var(--text-muted);
-}
-.mobileRow div {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.mobileRow strong {
-  color: var(--text);
-  font-size: 14px;
-}
-.mobileRow span {
-  font-size: 13px;
-}

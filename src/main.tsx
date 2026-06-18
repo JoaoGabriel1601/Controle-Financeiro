@@ -1,8 +1,13 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { registerSW } from 'virtual:pwa-register';
 import './styles/theme.css';
 import { App } from './App';
 import { isSupabaseConfigured } from './services/supabase';
+
+// Service worker do PWA: cache offline + atualização automática (autoUpdate)
+// quando um novo build é publicado.
+registerSW({ immediate: true });
 
 if (!isSupabaseConfigured) {
   document.body.innerHTML =

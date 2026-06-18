@@ -13,6 +13,7 @@ gráficos. Os dados são sincronizados em tempo real por usuário no Supabase.
 - **Orçamentos** mensais por categoria, com acompanhamento de consumo
 - **Relatórios** por período e exportação em **CSV** e **PDF**
 - **Tema** claro/escuro
+- **PWA** instalável (Android, iOS e desktop) com cache offline
 - Sincronização em tempo real (Supabase Realtime / `postgres_changes`)
 
 ## Stack
@@ -112,6 +113,18 @@ Com a [CLI da Vercel](https://vercel.com/docs/cli) autenticada (`VERCEL_TOKEN` o
 npm run build                  # opcional, só para conferir o build local
 vercel deploy --prod --yes     # publica em produção
 ```
+
+## PWA (instalar no celular)
+
+O app é um **PWA** (`vite-plugin-pwa`): pode ser instalado na tela inicial e funciona offline.
+
+- **Android (Chrome):** aparece um botão **Instalar app** em _Configurações_ (e o banner nativo do Chrome).
+- **iPhone/iPad (Safari):** **Compartilhar → Adicionar à Tela de Início** (o iOS não permite botão automático).
+- **Desktop:** ícone de instalar na barra de endereço do navegador.
+
+Os ícones (`public/pwa-192.png`, `pwa-512.png`, `apple-touch-icon.png`) são gerados a partir de
+[`scripts/icon-source.svg`](scripts/icon-source.svg) com `npm run icons`. O service worker atualiza
+sozinho (`registerType: 'autoUpdate'`) a cada novo deploy.
 
 ## Estrutura
 
