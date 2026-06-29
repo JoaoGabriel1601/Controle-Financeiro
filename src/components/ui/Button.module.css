@@ -44,10 +44,10 @@
 .primary {
   background: var(--grad-primary, var(--primary));
   color: #fff;
-  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.35);
+  box-shadow: 0 6px 16px rgba(77, 139, 255, 0.4);
 }
 .primary:hover:not(:disabled) {
-  box-shadow: 0 10px 24px rgba(99, 102, 241, 0.45);
+  box-shadow: 0 10px 26px rgba(77, 139, 255, 0.55);
 }
 
 .secondary {
@@ -72,17 +72,19 @@
 .danger {
   background: var(--danger);
   color: #fff;
+  box-shadow: 0 6px 16px rgba(224, 85, 200, 0.35);
 }
 .danger:hover:not(:disabled) {
-  background: #c0392b;
+  background: var(--danger);
+  box-shadow: 0 10px 26px rgba(224, 85, 200, 0.5);
 }
 
 .success {
   background: var(--success);
-  color: #fff;
+  color: #062018;
 }
 .success:hover:not(:disabled) {
-  background: #15803d;
+  filter: brightness(1.08);
 }
 
 .loading {

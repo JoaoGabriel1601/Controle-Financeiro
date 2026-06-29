@@ -1,63 +1,75 @@
+/*
+ * Tema "Midnight Neon" — deep navy + azul elétrico + magenta com brilho.
+ * Toda a UI consome estes tokens via var(--*), então a troca de paleta aqui
+ * reskina o app inteiro sem tocar nos componentes.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
+
 :root,
 [data-theme='dark'] {
   color-scheme: dark;
-  --bg: #0b1020;
-  --bg-elevated: #131a32;
-  --bg-card: #161e3a;
-  --bg-card-hover: #1c2547;
-  --bg-input: #0f1530;
-  --border: #243056;
-  --border-strong: #324275;
-  --text: #e6ebff;
-  --text-muted: #94a3c4;
-  --text-soft: #6b7aa3;
+  --bg: #070b14;
+  --bg-elevated: #0a0f1c;
+  --bg-card: #0e1626;
+  --bg-card-hover: #13203a;
+  --bg-input: #0c1322;
+  --border: #1c2a44;
+  --border-strong: #25406e;
+  --text: #dbe6ff;
+  --text-muted: #7c8db5;
+  --text-soft: #46557d;
 
-  --primary: #6366f1;
-  --primary-hover: #7376ff;
-  --primary-soft: rgba(99, 102, 241, 0.15);
+  --primary: #4d8bff;
+  --primary-hover: #6ea3ff;
+  --primary-soft: rgba(77, 139, 255, 0.16);
 
-  --success: #22c55e;
-  --success-soft: rgba(34, 197, 94, 0.15);
-  --danger: #ef4444;
-  --danger-soft: rgba(239, 68, 68, 0.15);
-  --warning: #f59e0b;
-  --warning-soft: rgba(245, 158, 11, 0.15);
+  --success: #46e6a5;
+  --success-soft: rgba(70, 230, 165, 0.15);
+  --danger: #e055c8;
+  --danger-soft: rgba(224, 85, 200, 0.16);
+  --warning: #f0a850;
+  --warning-soft: rgba(240, 168, 80, 0.15);
   --info: #38bdf8;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
-  --shadow-lg: 0 24px 48px rgba(0, 0, 0, 0.45);
+  --shadow-sm: 0 1px 2px rgba(2, 8, 23, 0.5);
+  --shadow-md: 0 8px 28px rgba(2, 8, 23, 0.55);
+  --shadow-lg: 0 24px 56px rgba(2, 8, 23, 0.65);
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 18px;
   --radius-full: 9999px;
 
-  --grad-primary: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  --grad-success: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
-  --grad-danger: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+  /* Brilho neon reutilizável (halo do azul primário). */
+  --glow-primary: 0 0 28px rgba(77, 139, 255, 0.35);
+  --glow-accent: 0 0 28px rgba(224, 85, 200, 0.3);
+
+  --grad-primary: linear-gradient(135deg, #4d8bff 0%, #7b61ff 100%);
+  --grad-success: linear-gradient(135deg, #21c08a 0%, #46e6a5 100%);
+  --grad-danger: linear-gradient(135deg, #b5249e 0%, #e055c8 100%);
 }
 
 [data-theme='light'] {
   color-scheme: light;
-  --bg: #f5f7fb;
+  --bg: #f4f7fc;
   --bg-elevated: #ffffff;
   --bg-card: #ffffff;
-  --bg-card-hover: #f0f3fa;
+  --bg-card-hover: #eef2fb;
   --bg-input: #ffffff;
-  --border: #e2e8f0;
-  --border-strong: #cbd5e1;
-  --text: #0f172a;
-  --text-muted: #475569;
-  --text-soft: #94a3b8;
+  --border: #e1e8f5;
+  --border-strong: #c6d2ea;
+  --text: #0c1730;
+  --text-muted: #51618a;
+  --text-soft: #93a1c2;
 
-  --primary: #4f46e5;
-  --primary-hover: #4338ca;
-  --primary-soft: rgba(79, 70, 229, 0.1);
+  --primary: #2f6bff;
+  --primary-hover: #1f57e6;
+  --primary-soft: rgba(47, 107, 255, 0.1);
 
-  --success: #16a34a;
-  --success-soft: rgba(22, 163, 74, 0.1);
-  --danger: #dc2626;
-  --danger-soft: rgba(220, 38, 38, 0.1);
+  --success: #11a36b;
+  --success-soft: rgba(17, 163, 107, 0.12);
+  --danger: #c81fab;
+  --danger-soft: rgba(200, 31, 171, 0.1);
   --warning: #d97706;
   --warning-soft: rgba(217, 119, 6, 0.1);
   --info: #0284c7;
@@ -65,6 +77,13 @@
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
   --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
   --shadow-lg: 0 24px 48px rgba(15, 23, 42, 0.12);
+
+  --glow-primary: 0 6px 18px rgba(47, 107, 255, 0.25);
+  --glow-accent: 0 6px 18px rgba(200, 31, 171, 0.2);
+
+  --grad-primary: linear-gradient(135deg, #2f6bff 0%, #7b61ff 100%);
+  --grad-success: linear-gradient(135deg, #0e9460 0%, #16c07d 100%);
+  --grad-danger: linear-gradient(135deg, #a4178c 0%, #c81fab 100%);
 }
 
 * {
@@ -80,7 +99,7 @@ body,
 body {
   margin: 0;
   font-family:
-    'Inter',
+    'Plus Jakarta Sans',
     system-ui,
     -apple-system,
     BlinkMacSystemFont,
@@ -91,7 +110,15 @@ body {
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+}
+
+/* Títulos e números de destaque usam Space Grotesk — assinatura do Midnight Neon. */
+h1,
+h2,
+h3,
+h4 {
+  font-family: 'Space Grotesk', 'Plus Jakarta Sans', system-ui, sans-serif;
+  letter-spacing: -0.01em;
 }
 
 button {
