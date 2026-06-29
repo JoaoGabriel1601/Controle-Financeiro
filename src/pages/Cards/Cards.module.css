@@ -88,10 +88,20 @@
   position: relative;
 }
 
+.ccBankArea {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
 .ccBank {
   font-size: 17px;
   font-weight: 700;
   letter-spacing: 0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ccChip {
@@ -126,8 +136,7 @@
 .ccBottom {
   display: flex;
   align-items: flex-end;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 14px;
   position: relative;
 }
 
@@ -136,6 +145,9 @@
   flex-direction: column;
   gap: 3px;
   min-width: 0;
+}
+.ccField:first-child {
+  flex: 1;
 }
 .ccFieldRight {
   text-align: right;
@@ -159,10 +171,9 @@
 }
 
 .ccBrand {
-  position: absolute;
-  right: 0;
-  bottom: 28px;
-  opacity: 0.95;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: flex-end;
 }
 
 /* ---------- Card de limite ---------- */

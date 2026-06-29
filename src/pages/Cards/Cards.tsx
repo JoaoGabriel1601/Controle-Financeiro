@@ -295,7 +295,10 @@ function CardPanel({
         >
           <div className={styles.ccGlow} aria-hidden />
           <div className={styles.ccTop}>
-            <span className={styles.ccBank}>{bankName}</span>
+            <div className={styles.ccBankArea}>
+              {card.institution && <BrandLogo slug={card.institution} size={26} radius={6} />}
+              <span className={styles.ccBank}>{bankName}</span>
+            </div>
             <span className={styles.ccChip} aria-hidden>
               <Wifi size={18} />
             </span>
@@ -320,9 +323,9 @@ function CardPanel({
               <strong className={styles.ccValue}>{decorativeValidThru(card.id)}</strong>
             </div>
             {card.brand && (
-              <div className={styles.ccBrand}>
-                <BrandLogo slug={card.brand} size={44} radius={6} />
-              </div>
+              <span className={styles.ccBrand}>
+                <BrandLogo slug={card.brand} size={36} radius={5} />
+              </span>
             )}
           </div>
         </div>
