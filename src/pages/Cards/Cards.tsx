@@ -324,7 +324,7 @@ function CardPanel({
             </div>
             {card.brand && (
               <span className={styles.ccBrand}>
-                <BrandLogo slug={card.brand} size={36} radius={5} />
+                <BrandLogo slug={card.brand} size={34} radius={5} variant="badge" />
               </span>
             )}
           </div>

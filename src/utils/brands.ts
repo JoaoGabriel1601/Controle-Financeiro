@@ -12,7 +12,7 @@ export interface BrandDef {
 }
 
 /**
- * Bandeiras de cartão (rede). As logos full-color vêm do pacote
+ * Bandeiras de cartão (rede). As logos vêm do pacote
  * `react-svg-credit-card-payment-icons` (ver BrandLogo); aqui ficam só
  * label/cor para os selects e o fallback.
  */

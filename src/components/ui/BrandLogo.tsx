@@ -1,8 +1,19 @@
-import visaSvg from 'payment-icons/min/flat/visa.svg';
-import mastercardSvg from 'payment-icons/min/flat/mastercard.svg';
-import amexSvg from 'payment-icons/min/flat/amex.svg';
-import eloSvg from 'payment-icons/min/flat/elo.svg';
-import hipercardSvg from 'payment-icons/min/flat/hipercard.svg';
+import type { ComponentType, SVGProps } from 'react';
+// Importação por bandeira (subpath) para não empacotar o catálogo inteiro.
+import { VisaLogoIcon, VisaFlatRoundedIcon } from 'react-svg-credit-card-payment-icons/visa';
+import {
+  MastercardLogoIcon,
+  MastercardFlatRoundedIcon,
+} from 'react-svg-credit-card-payment-icons/mastercard';
+import {
+  AmericanExpressLogoIcon,
+  AmericanExpressFlatRoundedIcon,
+} from 'react-svg-credit-card-payment-icons/americanexpress';
+import { EloLogoIcon, EloFlatRoundedIcon } from 'react-svg-credit-card-payment-icons/elo';
+import {
+  HipercardLogoIcon,
+  HipercardFlatRoundedIcon,
+} from 'react-svg-credit-card-payment-icons/hipercard';
 import nubankSvg from '../../assets/banks/nubank.svg';
 import itauSvg from '../../assets/banks/itau.svg';
 import bbSvg from '../../assets/banks/bb.svg';
@@ -24,13 +35,30 @@ import stoneSvg from '../../assets/banks/stone.svg';
 import xpSvg from '../../assets/banks/xp.svg';
 import { brandInitials, findBrand, readableOn } from '../../utils/brands';
 
-// Logos full-color das bandeiras (SVG de cartão arredondado, proporção ~3:2).
-const CARD_LOGOS: Record<string, string> = {
-  visa: visaSvg,
-  mastercard: mastercardSvg,
-  amex: amexSvg,
-  elo: eloSvg,
-  hipercard: hipercardSvg,
+type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
+
+/** Proporção do canvas das bandeiras (780×500). */
+const BRAND_RATIO = 780 / 500;
+
+/**
+ * Bandeiras de cartão — pacote `react-svg-credit-card-payment-icons`.
+ * `LOGO` é só a marca da rede (fundo transparente), usada nos tiles ao lado dos
+ * bancos; `BADGE` é o cartão colorido (flat-rounded), usado na face do cartão.
+ */
+const BRAND_LOGO: Record<string, IconComponent> = {
+  visa: VisaLogoIcon,
+  mastercard: MastercardLogoIcon,
+  amex: AmericanExpressLogoIcon,
+  elo: EloLogoIcon,
+  hipercard: HipercardLogoIcon,
+};
+
+const BRAND_BADGE: Record<string, IconComponent> = {
+  visa: VisaFlatRoundedIcon,
+  mastercard: MastercardFlatRoundedIcon,
+  amex: AmericanExpressFlatRoundedIcon,
+  elo: EloFlatRoundedIcon,
+  hipercard: HipercardFlatRoundedIcon,
 };
 
 // Logos oficiais de bancos/fintechs (SVG), renderizadas num tile branco.
@@ -63,27 +91,61 @@ interface BrandLogoProps {
   /** Cantos arredondados do chip/tile (px). */
   radius?: number;
   title?: string;
+  /**
+   * Aparência da bandeira:
+   * - `tile` (padrão): marca da rede num tile branco quadrado, coerente com os
+   *   bancos em listas, selects e avatares.
+   * - `badge`: cartão colorido (flat-rounded) para a face do cartão.
+   * Bancos/fintechs ignoram esta prop (sempre tile).
+   */
+  variant?: 'tile' | 'badge';
 }
 
 /**
- * Logo da marca. Bandeiras de cartão e bancos/fintechs usam a logo oficial
- * (SVG full-color); fintechs internacionais sem SVG local caem no glyph do
- * simple-icons; o resto, num chip com iniciais.
+ * Logo da marca. Bandeiras de cartão usam o pacote de ícones de pagamento;
+ * bancos/fintechs usam a logo oficial local; o resto cai num chip com iniciais.
+ * O `variant` mantém a aparência coerente entre os contextos do app.
  */
-export function BrandLogo({ slug, size = 32, radius = 8, title }: BrandLogoProps) {
+export function BrandLogo({ slug, size = 32, radius = 8, title, variant = 'tile' }: BrandLogoProps) {
   const brand = findBrand(slug);
   if (!brand) return null;
+  const label = title ?? brand.label;
 
-  // Bandeira: logo oficial colorida (tile de cartão, ~1,5× de largura).
-  const cardLogo = slug ? CARD_LOGOS[slug] : undefined;
-  if (cardLogo) {
+  const Badge = slug ? BRAND_BADGE[slug] : undefined;
+  const LogoMark = slug ? BRAND_LOGO[slug] : undefined;
+
+  // Bandeira em "badge": cartão colorido para a face do cartão (largura ~1,56×).
+  if (variant === 'badge' && Badge) {
     return (
-      <img
-        src={cardLogo}
-        alt={brand.label}
-        title={title ?? brand.label}
-        style={{ height: size, width: 'auto', flexShrink: 0, display: 'block' }}
-      />
+      <span
+        title={label}
+        style={{ display: 'inline-flex', flexShrink: 0, lineHeight: 0, borderRadius: radius }}
+      >
+        <Badge height={size} width={Math.round(size * BRAND_RATIO)} role="img" aria-label={label} />
+      </span>
+    );
+  }
+
+  // Bandeira em tile: marca da rede centralizada num tile branco (igual aos bancos).
+  if (LogoMark) {
+    const inner = Math.round(size * 0.78);
+    return (
+      <span
+        title={label}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: size,
+          height: size,
+          borderRadius: radius,
+          background: '#ffffff',
+          flexShrink: 0,
+          overflow: 'hidden',
+        }}
+      >
+        <LogoMark width={inner} role="img" aria-label={label} />
+      </span>
     );
   }
 
@@ -92,7 +154,7 @@ export function BrandLogo({ slug, size = 32, radius = 8, title }: BrandLogoProps
   if (bankLogo) {
     return (
       <span
-        title={title ?? brand.label}
+        title={label}
         style={{
           display: 'inline-flex',
           alignItems: 'center',
@@ -108,7 +170,7 @@ export function BrandLogo({ slug, size = 32, radius = 8, title }: BrandLogoProps
       >
         <img
           src={bankLogo}
-          alt={brand.label}
+          alt={label}
           style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
         />
       </span>
@@ -121,7 +183,7 @@ export function BrandLogo({ slug, size = 32, radius = 8, title }: BrandLogoProps
 
   return (
     <span
-      title={title ?? brand.label}
+      title={label}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
@@ -138,7 +200,7 @@ export function BrandLogo({ slug, size = 32, radius = 8, title }: BrandLogoProps
       {brand.icon ? (
         <svg
           role="img"
-          aria-label={brand.label}
+          aria-label={label}
           viewBox="0 0 24 24"
           width={size * 0.62}
           height={size * 0.62}
