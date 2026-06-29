@@ -1,19 +1,13 @@
 import type { ComponentType, SVGProps } from 'react';
-// Importação por bandeira (subpath) para não empacotar o catálogo inteiro.
-import { VisaLogoIcon, VisaFlatRoundedIcon } from 'react-svg-credit-card-payment-icons/visa';
+// Só o formato `logo` (marca pura, sem fundo nem texto). Importar do subpath do
+// formato evita empacotar os variantes pesados (flat/mono/etc.) de cada bandeira.
 import {
-  MastercardLogoIcon,
-  MastercardFlatRoundedIcon,
-} from 'react-svg-credit-card-payment-icons/mastercard';
-import {
-  AmericanExpressLogoIcon,
-  AmericanExpressFlatRoundedIcon,
-} from 'react-svg-credit-card-payment-icons/americanexpress';
-import { EloLogoIcon, EloFlatRoundedIcon } from 'react-svg-credit-card-payment-icons/elo';
-import {
-  HipercardLogoIcon,
-  HipercardFlatRoundedIcon,
-} from 'react-svg-credit-card-payment-icons/hipercard';
+  Visa as VisaLogoIcon,
+  Mastercard as MastercardLogoIcon,
+  AmericanExpress as AmericanExpressLogoIcon,
+  Elo as EloLogoIcon,
+  Hipercard as HipercardLogoIcon,
+} from 'react-svg-credit-card-payment-icons/icons/logo';
 import nubankSvg from '../../assets/banks/nubank.svg';
 import itauSvg from '../../assets/banks/itau.svg';
 import bbSvg from '../../assets/banks/bb.svg';
@@ -41,9 +35,9 @@ type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
 const BRAND_RATIO = 780 / 500;
 
 /**
- * Bandeiras de cartão — pacote `react-svg-credit-card-payment-icons`.
- * `LOGO` é só a marca da rede (fundo transparente), usada nos tiles ao lado dos
- * bancos; `BADGE` é o cartão colorido (flat-rounded), usado na face do cartão.
+ * Bandeiras de cartão — pacote `react-svg-credit-card-payment-icons`, formato
+ * `logo`: a marca pura da rede (fundo transparente, sem texto). No Mastercard,
+ * por exemplo, são apenas os dois círculos.
  */
 const BRAND_LOGO: Record<string, IconComponent> = {
   visa: VisaLogoIcon,
@@ -51,14 +45,6 @@ const BRAND_LOGO: Record<string, IconComponent> = {
   amex: AmericanExpressLogoIcon,
   elo: EloLogoIcon,
   hipercard: HipercardLogoIcon,
-};
-
-const BRAND_BADGE: Record<string, IconComponent> = {
-  visa: VisaFlatRoundedIcon,
-  mastercard: MastercardFlatRoundedIcon,
-  amex: AmericanExpressFlatRoundedIcon,
-  elo: EloFlatRoundedIcon,
-  hipercard: HipercardFlatRoundedIcon,
 };
 
 // Logos oficiais de bancos/fintechs (SVG), renderizadas num tile branco.
@@ -95,10 +81,10 @@ interface BrandLogoProps {
    * Aparência da bandeira:
    * - `tile` (padrão): marca da rede num tile branco quadrado, coerente com os
    *   bancos em listas, selects e avatares.
-   * - `badge`: cartão colorido (flat-rounded) para a face do cartão.
+   * - `mark`: marca pura sem fundo (só o símbolo) para a face do cartão.
    * Bancos/fintechs ignoram esta prop (sempre tile).
    */
-  variant?: 'tile' | 'badge';
+  variant?: 'tile' | 'mark';
 }
 
 /**
@@ -111,17 +97,21 @@ export function BrandLogo({ slug, size = 32, radius = 8, title, variant = 'tile'
   if (!brand) return null;
   const label = title ?? brand.label;
 
-  const Badge = slug ? BRAND_BADGE[slug] : undefined;
   const LogoMark = slug ? BRAND_LOGO[slug] : undefined;
 
-  // Bandeira em "badge": cartão colorido para a face do cartão (largura ~1,56×).
-  if (variant === 'badge' && Badge) {
+  // Bandeira em "mark": só o símbolo, sem fundo (face do cartão).
+  if (variant === 'mark' && LogoMark) {
     return (
       <span
         title={label}
-        style={{ display: 'inline-flex', flexShrink: 0, lineHeight: 0, borderRadius: radius }}
+        style={{ display: 'inline-flex', flexShrink: 0, lineHeight: 0 }}
       >
-        <Badge height={size} width={Math.round(size * BRAND_RATIO)} role="img" aria-label={label} />
+        <LogoMark
+          height={size}
+          width={Math.round(size * BRAND_RATIO)}
+          role="img"
+          aria-label={label}
+        />
       </span>
     );
   }
