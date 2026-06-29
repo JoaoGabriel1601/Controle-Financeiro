@@ -29,6 +29,7 @@ import {
   toJsDate,
 } from '../../utils/format';
 import { findBrand } from '../../utils/brands';
+import { cardTheme } from '../../utils/cardThemes';
 import {
   buildInvoices,
   cardDebt,
@@ -280,12 +281,18 @@ function CardPanel({
 
   const bankName = card.institution ? (findBrand(card.institution)?.label ?? card.name) : card.name;
   const remaining = current ? current.total - current.paidAmount : 0;
+  const theme = cardTheme(card.institution);
 
   return (
     <div className={styles.layout}>
       {/* Coluna esquerda: cartão visual + limite */}
       <div className={styles.leftCol}>
-        <div className={styles.creditCard}>
+        <div
+          className={styles.creditCard}
+          style={
+            { background: theme.background, '--cc-text': theme.color } as React.CSSProperties
+          }
+        >
           <div className={styles.ccGlow} aria-hidden />
           <div className={styles.ccTop}>
             <span className={styles.ccBank}>{bankName}</span>
