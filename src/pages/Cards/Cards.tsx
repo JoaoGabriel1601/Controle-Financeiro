@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CreditCard, Plus, Pencil, Trash2, ChevronDown, CheckCircle2 } from 'lucide-react';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { CreditCard, Plus, Pencil, Trash2, ChevronDown, CheckCircle2, Wifi } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
@@ -15,18 +17,56 @@ import { DateField } from '../../components/ui/DateField';
 import { CARD_BRANDS, INSTITUTIONS } from '../../utils/brands';
 import { toast } from '../../components/ui/toastStore';
 import { useDataStore } from '../../stores/dataStore';
+import { useAuthStore } from '../../stores/authStore';
 import { transactionService } from '../../services/transaction.service';
 import { accountService } from '../../services/account.service';
-import { formatCurrency, formatDate, dateInputValue, parseDateInput } from '../../utils/format';
 import {
-  availableLimit,
+  formatCurrency,
+  formatDate,
+  dateInputValue,
+  parseDateInput,
+  parseMonthKey,
+  toJsDate,
+} from '../../utils/format';
+import { findBrand } from '../../utils/brands';
+import {
   buildInvoices,
   cardDebt,
   competenciaLabel,
   currentCompetencia,
 } from '../../utils/invoices';
-import type { Account, AccountInput, Invoice, Transaction } from '../../types';
+import type { Account, AccountInput, Category, Invoice, Transaction } from '../../types';
 import styles from './Cards.module.css';
+
+/** Hash estável de uma string em inteiro positivo. */
+function hashString(value: string): number {
+  let h = 0;
+  for (let i = 0; i < value.length; i++) h = (h * 31 + value.charCodeAt(i)) >>> 0;
+  return h;
+}
+
+/** Últimos 4 dígitos decorativos (estáveis por cartão) para o visual do cartão. */
+function decorativeLast4(id: string): string {
+  return String(hashString(id) % 10000).padStart(4, '0');
+}
+
+/** "Válido até" decorativo (MM/AA estável por cartão). */
+function decorativeValidThru(id: string): string {
+  const h = hashString(`${id}:valid`);
+  const month = String((h % 12) + 1).padStart(2, '0');
+  const year = 28 + (h % 5);
+  return `${month}/${year}`;
+}
+
+/** Mês da competência por extenso (ex.: "junho"). */
+function invoiceMonthLabel(competencia: string): string {
+  return format(parseMonthKey(competencia), 'MMMM', { locale: ptBR });
+}
+
+/** Data curta "dd MMM" (ex.: "28 jun"). */
+function shortDayMonth(date: string): string {
+  return format(toJsDate(date), 'dd MMM', { locale: ptBR });
+}
 
 // Opções dos seletores de bandeira e banco/fintech, com a logo ao lado do nome.
 const BRAND_OPTIONS: IconSelectOption[] = [
@@ -62,9 +102,24 @@ interface PayTarget {
 export function CardsPage() {
   const accounts = useDataStore((s) => s.accounts);
   const transactions = useDataStore((s) => s.transactions);
+  const categories = useDataStore((s) => s.categories);
+  const user = useAuthStore((s) => s.user);
 
   const creditCards = useMemo(() => accounts.filter((a) => a.type === 'credit'), [accounts]);
   const cashAccounts = useMemo(() => accounts.filter((a) => a.type !== 'credit'), [accounts]);
+
+  // Mapa de categorias para exibir o ícone/cor de cada lançamento na fatura.
+  const categoryById = useMemo(() => {
+    const map = new Map<string, Category>();
+    for (const c of categories) map.set(c.id, c);
+    return map;
+  }, [categories]);
+
+  // Total em aberto somando a fatura atual de cada cartão (para o subtítulo).
+  const openTotal = useMemo(
+    () => creditCards.reduce((sum, card) => sum + cardDebt(card, transactions), 0),
+    [creditCards, transactions],
+  );
 
   const [payTarget, setPayTarget] = useState<PayTarget | null>(null);
   const [cardModal, setCardModal] = useState<{ card: Account | null } | null>(null);
@@ -132,7 +187,7 @@ export function CardsPage() {
             Novo cartão
           </Button>
         </header>
-        <Card>
+        <Card padded>
           <EmptyState
             icon={<CreditCard size={28} />}
             title="Nenhum cartão cadastrado"
@@ -155,7 +210,9 @@ export function CardsPage() {
       <header className={styles.head}>
         <div>
           <h1 className={styles.title}>Cartões</h1>
-          <p className={styles.subtitle}>Faturas e limites dos seus cartões de crédito.</p>
+          <p className={styles.subtitle}>
+            Fatura aberta · <strong>{formatCurrency(openTotal)}</strong>
+          </p>
         </div>
         <Button leftIcon={<Plus size={16} />} onClick={() => setCardModal({ card: null })}>
           Novo cartão
@@ -168,6 +225,8 @@ export function CardsPage() {
             key={card.id}
             card={card}
             transactions={transactions}
+            categoryById={categoryById}
+            holderName={user?.displayName ?? null}
             onPay={(invoice) => setPayTarget({ card, invoice })}
             onEdit={() => setCardModal({ card })}
             onDelete={() => requestDeleteCard(card)}
@@ -192,12 +251,22 @@ export function CardsPage() {
 interface CardPanelProps {
   card: Account;
   transactions: Transaction[];
+  categoryById: Map<string, Category>;
+  holderName: string | null;
   onPay: (invoice: Invoice) => void;
   onEdit: () => void;
   onDelete: () => void;
 }
 
-function CardPanel({ card, transactions, onPay, onEdit, onDelete }: CardPanelProps) {
+function CardPanel({
+  card,
+  transactions,
+  categoryById,
+  holderName,
+  onPay,
+  onEdit,
+  onDelete,
+}: CardPanelProps) {
   const [showHistory, setShowHistory] = useState(false);
   const invoices = useMemo(() => buildInvoices(card, transactions), [card, transactions]);
   const currentComp = currentCompetencia(card);
@@ -206,126 +275,172 @@ function CardPanel({ card, transactions, onPay, onEdit, onDelete }: CardPanelPro
   const previous = invoices.filter((i) => i.competencia !== currentComp);
 
   const debt = cardDebt(card, transactions);
-  const available = availableLimit(card, transactions);
   const limit = card.creditLimit ?? 0;
   const usedPct = limit > 0 ? Math.min(100, Math.round((debt / limit) * 100)) : 0;
 
+  const bankName = card.institution ? (findBrand(card.institution)?.label ?? card.name) : card.name;
+  const remaining = current ? current.total - current.paidAmount : 0;
+
   return (
-    <Card className={styles.panel}>
-      <div className={styles.panelHead}>
-        {card.brand ? (
-          <BrandLogo slug={card.brand} size={38} radius={10} />
-        ) : (
-          <span className={styles.panelIcon}>
-            <CreditCard size={18} />
-          </span>
-        )}
-        <div className={styles.panelTitle}>
-          <strong>{card.name}</strong>
-          <span className={styles.panelMeta}>
-            {card.institution && <BrandLogo slug={card.institution} size={16} radius={4} />}
-            {card.dueDay != null && <span>Vence dia {card.dueDay}</span>}
-          </span>
-        </div>
-        <div className={styles.panelActions}>
-          <button onClick={onEdit} aria-label="Editar cartão">
-            <Pencil size={14} />
-          </button>
-          <button onClick={onDelete} aria-label="Remover cartão">
-            <Trash2 size={14} />
-          </button>
-        </div>
-      </div>
-
-      {limit > 0 && (
-        <div className={styles.limitArea}>
-          <div className={styles.limitBar}>
-            <div className={styles.limitFill} style={{ width: `${usedPct}%` }} />
-          </div>
-          <div className={styles.limitMeta}>
-            <span>
-              Disponível <strong>{formatCurrency(available)}</strong>
+    <div className={styles.layout}>
+      {/* Coluna esquerda: cartão visual + limite */}
+      <div className={styles.leftCol}>
+        <div className={styles.creditCard}>
+          <div className={styles.ccGlow} aria-hidden />
+          <div className={styles.ccTop}>
+            <span className={styles.ccBank}>{bankName}</span>
+            <span className={styles.ccChip} aria-hidden>
+              <Wifi size={18} />
             </span>
-            <span>Limite {formatCurrency(limit)}</span>
+          </div>
+
+          <div className={styles.ccNumber}>
+            <span>••••</span>
+            <span>••••</span>
+            <span>••••</span>
+            <span className={styles.ccLast4}>{decorativeLast4(card.id)}</span>
+          </div>
+
+          <div className={styles.ccBottom}>
+            <div className={styles.ccField}>
+              <span className={styles.ccLabel}>Titular</span>
+              <strong className={styles.ccValue}>
+                {(holderName ?? 'Titular').toUpperCase()}
+              </strong>
+            </div>
+            <div className={`${styles.ccField} ${styles.ccFieldRight}`}>
+              <span className={styles.ccLabel}>Válido até</span>
+              <strong className={styles.ccValue}>{decorativeValidThru(card.id)}</strong>
+            </div>
+            {card.brand && (
+              <div className={styles.ccBrand}>
+                <BrandLogo slug={card.brand} size={44} radius={6} />
+              </div>
+            )}
           </div>
         </div>
-      )}
 
-      <div className={styles.currentInvoice}>
-        <span className={styles.sectionLabel}>Fatura atual · {competenciaLabel(currentComp)}</span>
-        <InvoiceBlock invoice={current} onPay={onPay} />
+        {limit > 0 && (
+          <Card padded className={styles.limitCard}>
+            <div className={styles.limitTop}>
+              <span className={styles.limitTitle}>Limite utilizado</span>
+              <strong className={styles.limitPct}>{usedPct}%</strong>
+            </div>
+            <div className={styles.limitBar}>
+              <div className={styles.limitFill} style={{ width: `${usedPct}%` }} />
+            </div>
+            <div className={styles.limitMeta}>
+              <span>{formatCurrency(debt)} usados</span>
+              <span>{formatCurrency(limit)} limite</span>
+            </div>
+          </Card>
+        )}
       </div>
 
-      {previous.length > 0 && (
-        <div className={styles.history}>
-          <button className={styles.historyToggle} onClick={() => setShowHistory((v) => !v)}>
-            <ChevronDown
-              size={16}
-              className={`${styles.chevron} ${showHistory ? styles.chevronOpen : ''}`}
-            />
-            Faturas anteriores ({previous.length})
-          </button>
-          {showHistory && (
-            <div className={styles.historyList}>
-              {previous.map((inv) => (
-                <div key={inv.competencia} className={styles.historyItem}>
-                  <div className={styles.historyInfo}>
-                    <strong>{competenciaLabel(inv.competencia)}</strong>
-                    <span>Venc. {formatDate(inv.dueDate)}</span>
-                  </div>
-                  <div className={styles.historyRight}>
-                    <span className={styles.historyTotal}>{formatCurrency(inv.total)}</span>
-                    {inv.paid ? (
-                      <Badge tone="success" icon={<CheckCircle2 size={12} />}>
-                        Paga
-                      </Badge>
-                    ) : (
-                      <Button size="sm" variant="secondary" onClick={() => onPay(inv)}>
-                        Pagar
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+      {/* Coluna direita: fatura atual */}
+      <Card padded className={styles.invoiceCard}>
+        <div className={styles.invoiceHead}>
+          <div className={styles.invoiceTitleArea}>
+            <h3 className={styles.invoiceTitle}>Fatura de {invoiceMonthLabel(currentComp)}</h3>
+            {current && (
+              <span className={styles.invoiceCycle}>
+                Fecha {shortDayMonth(current.closingDate)} · vence {shortDayMonth(current.dueDate)}
+              </span>
+            )}
+          </div>
+          <div className={styles.panelActions}>
+            <button onClick={onEdit} aria-label="Editar cartão">
+              <Pencil size={14} />
+            </button>
+            <button onClick={onDelete} aria-label="Remover cartão">
+              <Trash2 size={14} />
+            </button>
+          </div>
         </div>
-      )}
-    </Card>
+
+        <div className={styles.invoiceTotalRow}>
+          <strong className={styles.invoiceTotal}>{formatCurrency(current?.total ?? 0)}</strong>
+          {current &&
+            (current.paid ? (
+              <Badge tone="success" icon={<CheckCircle2 size={12} />}>
+                Paga
+              </Badge>
+            ) : (
+              <Button size="sm" onClick={() => onPay(current)} disabled={remaining <= 0}>
+                Pagar fatura
+              </Button>
+            ))}
+        </div>
+
+        <InvoiceItems invoice={current} categoryById={categoryById} />
+
+        {previous.length > 0 && (
+          <div className={styles.history}>
+            <button className={styles.historyToggle} onClick={() => setShowHistory((v) => !v)}>
+              <ChevronDown
+                size={16}
+                className={`${styles.chevron} ${showHistory ? styles.chevronOpen : ''}`}
+              />
+              Faturas anteriores ({previous.length})
+            </button>
+            {showHistory && (
+              <div className={styles.historyList}>
+                {previous.map((inv) => (
+                  <div key={inv.competencia} className={styles.historyItem}>
+                    <div className={styles.historyInfo}>
+                      <strong>{competenciaLabel(inv.competencia)}</strong>
+                      <span>Venc. {formatDate(inv.dueDate)}</span>
+                    </div>
+                    <div className={styles.historyRight}>
+                      <span className={styles.historyTotal}>{formatCurrency(inv.total)}</span>
+                      {inv.paid ? (
+                        <Badge tone="success" icon={<CheckCircle2 size={12} />}>
+                          Paga
+                        </Badge>
+                      ) : (
+                        <Button size="sm" variant="secondary" onClick={() => onPay(inv)}>
+                          Pagar
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </Card>
+    </div>
   );
 }
 
-interface InvoiceBlockProps {
+interface InvoiceItemsProps {
   invoice: Invoice | undefined;
-  onPay: (invoice: Invoice) => void;
+  categoryById: Map<string, Category>;
 }
 
-function InvoiceBlock({ invoice, onPay }: InvoiceBlockProps) {
+function InvoiceItems({ invoice, categoryById }: InvoiceItemsProps) {
   if (!invoice || invoice.items.length === 0) {
     return <p className={styles.empty}>Nenhum lançamento nesta fatura.</p>;
   }
-  const remaining = invoice.total - invoice.paidAmount;
   return (
-    <>
-      <div className={styles.invoiceTotalRow}>
-        <strong className={styles.invoiceTotal}>{formatCurrency(invoice.total)}</strong>
-        {invoice.paid ? (
-          <Badge tone="success" icon={<CheckCircle2 size={12} />}>
-            Paga
-          </Badge>
-        ) : (
-          <Button size="sm" onClick={() => onPay(invoice)} disabled={remaining <= 0}>
-            Pagar fatura
-          </Button>
-        )}
-      </div>
-      <div className={styles.itemList}>
-        {invoice.items.map((tx) => (
+    <div className={styles.itemList}>
+      {invoice.items.map((tx) => {
+        const cat = categoryById.get(tx.categoryId);
+        const isCredit = tx.type === 'income';
+        return (
           <div key={tx.id} className={styles.item}>
+            <span
+              className={styles.itemIcon}
+              style={cat ? { background: `${cat.color}22`, color: cat.color } : undefined}
+            >
+              {cat?.icon ?? (isCredit ? '💰' : '💸')}
+            </span>
             <div className={styles.itemBody}>
-              <span>{tx.description}</span>
-              <span className={styles.itemDate}>
-                {formatDate(tx.date)}
+              <span className={styles.itemName}>{tx.description}</span>
+              <span className={styles.itemMeta}>
+                {cat?.name ? `${cat.name} · ` : ''}
+                {shortDayMonth(tx.date)}
                 {tx.installmentTotal && tx.installmentTotal > 1 && (
                   <Badge tone="info" className={styles.installmentBadge}>
                     {tx.installmentNo}/{tx.installmentTotal}
@@ -333,14 +448,14 @@ function InvoiceBlock({ invoice, onPay }: InvoiceBlockProps) {
                 )}
               </span>
             </div>
-            <span className={`${styles.itemAmount} ${tx.type === 'income' ? styles.credit : ''}`}>
-              {tx.type === 'income' ? '− ' : ''}
+            <span className={`${styles.itemAmount} ${isCredit ? styles.credit : ''}`}>
+              {isCredit ? '+ ' : '− '}
               {formatCurrency(tx.amount)}
             </span>
           </div>
-        ))}
-      </div>
-    </>
+        );
+      })}
+    </div>
   );
 }
 
