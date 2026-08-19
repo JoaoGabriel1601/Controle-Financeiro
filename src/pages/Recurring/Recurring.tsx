@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Plus, Pencil, Trash2, Repeat, Play, Pause, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { Pencil, Trash2, Repeat, Play, Pause, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
@@ -85,14 +85,6 @@ export function RecurringPage() {
   const accountOptions = poolFor(form.type, form.paymentMethod);
   // Só despesas carregam método de pagamento.
   const effectiveMethod: PaymentMethod | null = form.type === 'expense' ? form.paymentMethod : null;
-
-  const openNew = () => {
-    setEditing(null);
-    const firstExpense = categories.find((c) => c.type === 'expense');
-    const firstCash = accounts.find((a) => a.type !== 'credit');
-    setForm(emptyForm(firstExpense?.id ?? '', firstCash?.id ?? accounts[0]?.id ?? ''));
-    setModalOpen(true);
-  };
 
   const openEdit = (r: RecurringTransaction) => {
     setEditing(r);
@@ -195,16 +187,10 @@ export function RecurringPage() {
         <div>
           <h1 className={styles.title}>Transações recorrentes</h1>
           <p className={styles.subtitle}>
-            Automatize lançamentos fixos — eles são gerados nas datas previstas ao abrir o app.
+            Acompanhe seus lançamentos fixos — crie novos na aba Lançamentos. Eles são gerados nas
+            datas previstas ao abrir o app.
           </p>
         </div>
-        <Button
-          leftIcon={<Plus size={16} />}
-          onClick={openNew}
-          disabled={categories.length === 0 || accounts.length === 0}
-        >
-          Nova recorrência
-        </Button>
       </header>
 
       {recurring.length === 0 ? (
@@ -212,14 +198,7 @@ export function RecurringPage() {
           <EmptyState
             icon={<Repeat size={28} />}
             title="Nenhuma recorrência ainda"
-            description="Cadastre receitas e despesas fixas (salário, aluguel, assinaturas) para lançar automaticamente."
-            action={
-              categories.length > 0 && accounts.length > 0 ? (
-                <Button leftIcon={<Plus size={16} />} onClick={openNew}>
-                  Nova recorrência
-                </Button>
-              ) : undefined
-            }
+            description="Crie receitas e despesas recorrentes (salário, aluguel, assinaturas) na aba Lançamentos — elas aparecem aqui para acompanhamento."
           />
         </Card>
       ) : (

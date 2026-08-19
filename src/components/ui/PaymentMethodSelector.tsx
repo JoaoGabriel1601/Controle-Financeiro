@@ -7,6 +7,8 @@ interface PaymentMethodSelectorProps {
   value: PaymentMethod;
   onChange: (method: PaymentMethod) => void;
   label?: string;
+  /** Restringe as formas exibidas (ex.: só à vista, sem crédito). Padrão: todas. */
+  methods?: PaymentMethod[];
 }
 
 /** Seletor visual (botões com ícone) das formas de pagamento. */
@@ -14,12 +16,13 @@ export function PaymentMethodSelector({
   value,
   onChange,
   label = 'Método de pagamento',
+  methods = PAYMENT_METHOD_ORDER,
 }: PaymentMethodSelectorProps) {
   return (
     <div className={styles.field}>
       <span className={styles.fieldLabel}>{label}</span>
       <div className={styles.grid}>
-        {PAYMENT_METHOD_ORDER.map((method) => (
+        {methods.map((method) => (
           <button
             key={method}
             type="button"

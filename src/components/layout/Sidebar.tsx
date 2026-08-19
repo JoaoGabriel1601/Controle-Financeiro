@@ -30,7 +30,7 @@ const NAV_SECTIONS = [
   {
     label: 'Lançamentos',
     items: [
-      { to: '/transacoes', label: 'Transações', icon: ArrowLeftRight },
+      { to: '/transacoes', label: 'Lançamentos', icon: ArrowLeftRight },
       { to: '/recorrentes', label: 'Recorrentes', icon: Repeat },
     ],
   },

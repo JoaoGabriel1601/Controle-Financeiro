@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { addMonths, endOfMonth, startOfMonth } from 'date-fns';
 import { Plus, Trash2, Landmark, CheckCircle2 } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -13,19 +12,11 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { toast } from '../../components/ui/toastStore';
 import { useDataStore } from '../../stores/dataStore';
 import { loanService } from '../../services/loan.service';
-import { transactionService } from '../../services/transaction.service';
+import { payLoanInstallment } from '../../utils/loanPayment';
 import { dateInputValue, formatCurrency, formatDate, parseDateInput } from '../../utils/format';
 import { roundCents } from '../../utils/money';
 import type { Loan, LoanInput } from '../../types';
 import styles from './Loans.module.css';
-
-/** Próxima data mensal ancorada ao dia-alvo (sem drift de fim de mês). */
-function nextMonthly(due: Date, dayOfMonth: number): Date {
-  const base = addMonths(startOfMonth(due), 1);
-  const last = endOfMonth(base).getDate();
-  base.setDate(Math.min(dayOfMonth, last));
-  return base;
-}
 
 interface FormState {
   name: string;
@@ -119,30 +110,8 @@ export function LoansPage() {
     if (!loan.nextDueDate || loan.status !== 'active') return;
     setPayingId(loan.id);
     try {
-      const no = loan.installmentsPaid + 1;
-      const isLast = no >= loan.installmentsTotal;
-      const due = parseDateInput(loan.nextDueDate);
-      const nextDue = isLast
-        ? null
-        : dateInputValue(nextMonthly(due, loan.dayOfMonth ?? due.getDate()));
-
-      await transactionService.create({
-        type: 'expense',
-        amount: loan.installmentAmount,
-        description: `${loan.name} (${no}/${loan.installmentsTotal})`,
-        categoryId: loan.categoryId ?? '',
-        accountId: loan.accountId,
-        date: new Date(),
-        loanId: loan.id,
-        installmentNo: no,
-        installmentTotal: loan.installmentsTotal,
-      });
-      await loanService.registerProgress(loan.id, {
-        installmentsPaid: no,
-        nextDueDate: nextDue,
-        status: isLast ? 'settled' : 'active',
-      });
-      toast.success(isLast ? 'Empréstimo quitado! 🎉' : 'Parcela registrada');
+      const { settled } = await payLoanInstallment(loan);
+      toast.success(settled ? 'Empréstimo quitado! 🎉' : 'Parcela registrada');
     } catch {
       toast.error('Não foi possível registrar a parcela');
     } finally {

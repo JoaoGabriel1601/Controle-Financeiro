@@ -1,7 +1,5 @@
 import { useMemo, useState } from 'react';
-import { addMonths } from 'date-fns';
 import {
-  Plus,
   Pencil,
   Trash2,
   ArrowLeftRight,
@@ -14,14 +12,10 @@ import {
 } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { Modal } from '../../components/ui/Modal';
 import { Input, Select } from '../../components/ui/Input';
-import { MoneyField } from '../../components/ui/MoneyField';
 import { IconSelect, type IconSelectOption } from '../../components/ui/IconSelect';
 import { Badge } from '../../components/ui/Badge';
 import { BrandLogo } from '../../components/ui/BrandLogo';
-import { DateField } from '../../components/ui/DateField';
-import { PaymentMethodSelector } from '../../components/ui/PaymentMethodSelector';
 import { PAYMENT_METHOD_ICONS, PAYMENT_METHOD_ORDER } from '../../components/ui/paymentMethodIcons';
 import { METHOD_LABELS } from '../../utils/paymentMethods';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -29,51 +23,33 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { toast } from '../../components/ui/toastStore';
 import { useDataStore } from '../../stores/dataStore';
 import { transactionService } from '../../services/transaction.service';
-import { dateInputValue, formatCurrency, formatDate, parseDateInput, toJsDate } from '../../utils/format';
-import type { Account, PaymentMethod, Transaction, TransactionType } from '../../types';
+import { formatCurrency, formatDate, toJsDate } from '../../utils/format';
+import { LaunchModal } from './LaunchModal';
+import { TransferModal } from './TransferModal';
+import type { LaunchKind } from './launchForm';
+import type { PaymentMethod, Transaction, TransactionType } from '../../types';
 import styles from './Transactions.module.css';
-
-// Conta vira opção do IconSelect com a logo certa: banco (institution) para
-// contas de dinheiro, bandeira (brand) para cartões.
-const accountToOption = (a: Account): IconSelectOption => ({
-  value: a.id,
-  label: a.name,
-  icon: <BrandLogo slug={a.type === 'credit' ? a.brand : a.institution} size={22} radius={6} />,
-});
-
-interface FormState {
-  type: TransactionType;
-  amountCents: number;
-  description: string;
-  categoryId: string;
-  accountId: string;
-  toAccountId: string;
-  date: string;
-  installments: string;
-  paymentMethod: PaymentMethod;
-}
-
-const emptyForm = (categoryId: string, accountId: string, toAccountId = ''): FormState => ({
-  type: 'expense',
-  amountCents: 0,
-  description: '',
-  categoryId,
-  accountId,
-  toAccountId,
-  date: dateInputValue(new Date()),
-  installments: '1',
-  paymentMethod: 'pix',
-});
 
 export function TransactionsPage() {
   const transactions = useDataStore((s) => s.transactions);
   const categories = useDataStore((s) => s.categories);
   const accounts = useDataStore((s) => s.accounts);
 
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<Transaction | null>(null);
-  const [form, setForm] = useState<FormState>(emptyForm('', ''));
-  const [submitting, setSubmitting] = useState(false);
+  // Estado dos modais de lançamento. `seq` só incrementa ao abrir e vira a `key`
+  // do modal, forçando remontagem (form reiniciado) a cada abertura; `open`
+  // controla visibilidade/animação e é desligado ao fechar sem trocar o conteúdo
+  // durante a saída.
+  const [launch, setLaunch] = useState<{
+    kind: LaunchKind;
+    editing: Transaction | null;
+    open: boolean;
+    seq: number;
+  }>({ kind: 'expense', editing: null, open: false, seq: 0 });
+  const [transfer, setTransfer] = useState<{
+    editing: Transaction | null;
+    open: boolean;
+    seq: number;
+  }>({ editing: null, open: false, seq: 0 });
   const [deleting, setDeleting] = useState<Transaction | null>(null);
   const [removing, setRemoving] = useState(false);
 
@@ -100,33 +76,20 @@ export function TransactionsPage() {
   const creditCards = useMemo(() => accounts.filter((a) => a.type === 'credit'), [accounts]);
   const cashAccounts = useMemo(() => accounts.filter((a) => a.type !== 'credit'), [accounts]);
 
-  const openNew = () => {
-    setEditing(null);
-    const firstExpense = categories.find((c) => c.type === 'expense');
-    setForm(
-      emptyForm(
-        firstExpense?.id ?? '',
-        cashAccounts[0]?.id ?? accounts[0]?.id ?? '',
-        cashAccounts[1]?.id ?? '',
-      ),
-    );
-    setModalOpen(true);
-  };
+  const noBasics = categories.length === 0 || accounts.length === 0;
 
+  const openNew = (kind: LaunchKind) =>
+    setLaunch((p) => ({ kind, editing: null, open: true, seq: p.seq + 1 }));
+  const openTransfer = () => setTransfer((p) => ({ editing: null, open: true, seq: p.seq + 1 }));
   const openEdit = (tx: Transaction) => {
-    setEditing(tx);
-    setForm({
-      type: tx.type,
-      amountCents: tx.amount,
-      description: tx.description,
-      categoryId: tx.categoryId,
-      accountId: tx.accountId,
-      toAccountId: tx.toAccountId ?? '',
-      date: dateInputValue(tx.date),
-      installments: '1',
-      paymentMethod: tx.paymentMethod ?? 'pix',
-    });
-    setModalOpen(true);
+    if (tx.type === 'transfer') {
+      setTransfer((p) => ({ editing: tx, open: true, seq: p.seq + 1 }));
+    } else {
+      // `tx.type` já é 'income' | 'expense' aqui; capturado numa const para
+      // preservar o narrowing dentro do closure do setState.
+      const kind = tx.type;
+      setLaunch((p) => ({ kind, editing: tx, open: true, seq: p.seq + 1 }));
+    }
   };
 
   // Opções dos filtros com ícone: logo do banco (institution), bandeira do
@@ -167,118 +130,12 @@ export function TransactionsPage() {
     [],
   );
 
-  const selectedAccount = accounts.find((a) => a.id === form.accountId);
-  const isCreditPurchase = form.type === 'expense' && form.paymentMethod === 'credit';
-
-  // Conjunto de contas válidas para o (tipo, método) atual. Cartão só entra na
-  // despesa com método crédito; receita e transferência usam contas de dinheiro
-  // (pagar fatura tem fluxo próprio em Cartões, que registra a competência).
-  const poolFor = (type: TransactionType, method: PaymentMethod) =>
-    type === 'expense' ? (method === 'credit' ? creditCards : cashAccounts) : cashAccounts;
-  // Mantém a conta selecionada coerente ao trocar tipo/método.
-  const reconcileAccount = (type: TransactionType, method: PaymentMethod, currentId: string) => {
-    const pool = poolFor(type, method);
-    return pool.some((a) => a.id === currentId) ? currentId : (pool[0]?.id ?? '');
-  };
-
-  // Contas mostradas no seletor de conta.
-  const accountOptions = poolFor(form.type, form.paymentMethod);
-
-  // Parcelamento só faz sentido numa compra nova no crédito (conta = cartão).
-  const canInstall = !editing && isCreditPurchase && selectedAccount?.type === 'credit';
-
-  // Só despesas carregam método de pagamento.
-  const effectiveMethod: PaymentMethod | null = form.type === 'expense' ? form.paymentMethod : null;
-
-  const installmentPreview = (() => {
-    if (!canInstall) return undefined;
-    const n = Math.max(1, Math.min(60, Math.trunc(Number(form.installments)) || 1));
-    const cents = form.amountCents;
-    if (!cents || n <= 1) return undefined;
-    return `${n}× de aprox. ${formatCurrency(Math.floor(cents / n))}`;
-  })();
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const amount = form.amountCents;
-    const isTransfer = form.type === 'transfer';
-    if (!amount || amount <= 0) return toast.error('Informe um valor maior que zero');
-    if (!form.description.trim()) return toast.error('Informe uma descrição');
-    if (isTransfer) {
-      if (!form.accountId) return toast.error('Selecione a conta de origem');
-      if (!form.toAccountId) return toast.error('Selecione a conta de destino');
-      if (form.accountId === form.toAccountId)
-        return toast.error('Origem e destino devem ser contas diferentes');
-    } else {
-      if (!form.categoryId) return toast.error('Selecione uma categoria');
-      if (!form.accountId) return toast.error('Selecione uma conta');
-    }
-
-    const installments = canInstall
-      ? Math.max(1, Math.min(60, Math.trunc(Number(form.installments)) || 1))
-      : 1;
-
-    setSubmitting(true);
-    try {
-      // Compra parcelada no cartão: materializa N transações, uma por mês,
-      // compartilhando o mesmo purchase_group_id.
-      if (installments > 1) {
-        const groupId = crypto.randomUUID();
-        const purchaseDate = parseDateInput(form.date);
-        const per = Math.floor(amount / installments);
-        const remainder = amount - per * installments;
-        const description = form.description.trim();
-        await transactionService.createMany(
-          Array.from({ length: installments }, (_, i) => ({
-            type: 'expense' as const,
-            // O resto dos centavos vai na primeira parcela.
-            amount: i === 0 ? per + remainder : per,
-            description: `${description} (${i + 1}/${installments})`,
-            categoryId: form.categoryId,
-            accountId: form.accountId,
-            date: addMonths(purchaseDate, i),
-            paymentMethod: 'credit' as const,
-            installmentNo: i + 1,
-            installmentTotal: installments,
-            purchaseGroupId: groupId,
-          })),
-        );
-        toast.success(`Compra parcelada em ${installments}× registrada`);
-        setModalOpen(false);
-        return;
-      }
-
-      const base = {
-        type: form.type,
-        amount,
-        description: form.description.trim(),
-        categoryId: isTransfer ? '' : form.categoryId,
-        accountId: form.accountId,
-        date: parseDateInput(form.date),
-        paymentMethod: effectiveMethod,
-      };
-      const payload = isTransfer ? { ...base, toAccountId: form.toAccountId } : base;
-      if (editing) {
-        await transactionService.update(editing.id, payload);
-        toast.success('Transação atualizada');
-      } else {
-        await transactionService.create(payload);
-        toast.success('Transação registrada');
-      }
-      setModalOpen(false);
-    } catch {
-      toast.error('Não foi possível salvar');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   const handleDelete = async () => {
     if (!deleting) return;
     setRemoving(true);
     try {
       await transactionService.remove(deleting.id);
-      toast.success('Transação removida');
+      toast.success('Lançamento removido');
       setDeleting(null);
     } catch {
       toast.error('Não foi possível remover');
@@ -289,21 +146,6 @@ export function TransactionsPage() {
 
   const categoryMap = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
   const accountMap = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
-
-  const categoriesForType = useMemo(
-    () => categories.filter((c) => c.type === (form.type === 'transfer' ? 'expense' : form.type)),
-    [categories, form.type],
-  );
-
-  const categoryFormOptions = useMemo<IconSelectOption[]>(
-    () =>
-      categoriesForType.map((c) => ({
-        value: c.id,
-        label: c.name,
-        icon: <span className={styles.categoryEmoji}>{c.icon}</span>,
-      })),
-    [categoriesForType],
-  );
 
   const grouped = useMemo(() => {
     const map = new Map<string, Transaction[]>();
@@ -322,16 +164,43 @@ export function TransactionsPage() {
   const findCategory = (id: string) => categoryMap.get(id);
   const findAccount = (id: string) => accountMap.get(id);
 
+  const entryButtons = (
+    <div className={styles.entryActions}>
+      <Button
+        variant="success"
+        leftIcon={<ArrowDownLeft size={16} />}
+        onClick={() => openNew('income')}
+        disabled={noBasics}
+      >
+        Adicionar Receita
+      </Button>
+      <Button
+        variant="danger"
+        leftIcon={<ArrowUpRight size={16} />}
+        onClick={() => openNew('expense')}
+        disabled={noBasics}
+      >
+        Adicionar Despesa
+      </Button>
+      <Button
+        variant="ghost"
+        leftIcon={<ArrowLeftRight size={16} />}
+        onClick={openTransfer}
+        disabled={cashAccounts.length < 2}
+      >
+        Transferência
+      </Button>
+    </div>
+  );
+
   return (
     <div className={styles.page}>
       <header className={styles.head}>
         <div>
-          <h1 className={styles.title}>Transações</h1>
-          <p className={styles.subtitle}>Registre e acompanhe todas suas movimentações.</p>
+          <h1 className={styles.title}>Lançamentos</h1>
+          <p className={styles.subtitle}>Registre e acompanhe todas as suas movimentações.</p>
         </div>
-        <Button leftIcon={<Plus size={16} />} onClick={openNew} disabled={categories.length === 0 || accounts.length === 0}>
-          Nova transação
-        </Button>
+        {entryButtons}
       </header>
 
       <Card padded={false} className={styles.filters}>
@@ -386,19 +255,13 @@ export function TransactionsPage() {
         <Card>
           <EmptyState
             icon={<ArrowLeftRight size={28} />}
-            title={transactions.length === 0 ? 'Nenhuma transação ainda' : 'Nenhum resultado'}
+            title={transactions.length === 0 ? 'Nenhum lançamento ainda' : 'Nenhum resultado'}
             description={
               transactions.length === 0
-                ? 'Comece registrando uma receita ou despesa.'
-                : 'Tente ajustar os filtros para ver suas transações.'
+                ? 'Comece adicionando uma receita ou despesa.'
+                : 'Tente ajustar os filtros para ver seus lançamentos.'
             }
-            action={
-              transactions.length === 0 && categories.length > 0 && accounts.length > 0 ? (
-                <Button leftIcon={<Plus size={16} />} onClick={openNew}>
-                  Nova transação
-                </Button>
-              ) : undefined
-            }
+            action={transactions.length === 0 && !noBasics ? entryButtons : undefined}
           />
         </Card>
       ) : (
@@ -476,145 +339,24 @@ export function TransactionsPage() {
         </div>
       )}
 
-      <Modal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title={editing ? 'Editar transação' : 'Nova transação'}
-        footer={
-          <>
-            <Button variant="ghost" onClick={() => setModalOpen(false)} disabled={submitting}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSubmit} loading={submitting}>
-              Salvar
-            </Button>
-          </>
-        }
-      >
-        <form onSubmit={handleSubmit} className={styles.formStack}>
-          <div className={styles.typeSwitch}>
-            {(['expense', 'income', 'transfer'] as const).map((type) => {
-              const toneClass =
-                type === 'income' ? styles.income : type === 'transfer' ? styles.transfer : styles.expense;
-              const label =
-                type === 'income' ? 'Receita' : type === 'transfer' ? 'Transferência' : 'Despesa';
-              const icon =
-                type === 'income' ? (
-                  <ArrowDownLeft size={16} />
-                ) : type === 'transfer' ? (
-                  <ArrowLeftRight size={16} />
-                ) : (
-                  <ArrowUpRight size={16} />
-                );
-              return (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() =>
-                    setForm({
-                      ...form,
-                      type,
-                      accountId: reconcileAccount(type, form.paymentMethod, form.accountId),
-                      categoryId:
-                        type === 'transfer'
-                          ? form.categoryId
-                          : categories.find((c) => c.type === type)?.id ?? form.categoryId,
-                    })
-                  }
-                  className={`${styles.typeBtn} ${form.type === type ? styles.typeBtnActive : ''} ${toneClass}`}
-                >
-                  {icon}
-                  <span>{label}</span>
-                </button>
-              );
-            })}
-          </div>
+      <LaunchModal
+        key={`launch-${launch.seq}`}
+        open={launch.open}
+        kind={launch.kind}
+        editing={launch.editing}
+        onClose={() => setLaunch((p) => ({ ...p, open: false }))}
+      />
 
-          <Input
-            label="Descrição"
-            placeholder="Ex.: Mercado da semana"
-            value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
-            autoFocus
-          />
-
-          <div className={styles.formRow}>
-            <MoneyField
-              label="Valor"
-              value={form.amountCents}
-              onChange={(cents) => setForm({ ...form, amountCents: cents })}
-            />
-            <DateField
-              label="Data"
-              value={form.date}
-              onChange={(date) => setForm({ ...form, date })}
-            />
-          </div>
-
-          {form.type !== 'transfer' && (
-            <IconSelect
-              label="Categoria"
-              placeholder="Selecione..."
-              value={form.categoryId}
-              onChange={(v) => setForm({ ...form, categoryId: v })}
-              options={categoryFormOptions}
-            />
-          )}
-
-          {form.type === 'expense' && (
-            <PaymentMethodSelector
-              value={form.paymentMethod}
-              onChange={(method) =>
-                setForm({
-                  ...form,
-                  paymentMethod: method,
-                  accountId: reconcileAccount(form.type, method, form.accountId),
-                  installments: method === 'credit' ? form.installments : '1',
-                })
-              }
-            />
-          )}
-
-          <IconSelect
-            label={form.type === 'transfer' ? 'Conta de origem' : isCreditPurchase ? 'Cartão' : 'Conta'}
-            placeholder="Selecione..."
-            value={form.accountId}
-            onChange={(v) => setForm({ ...form, accountId: v })}
-            options={accountOptions.map(accountToOption)}
-            hint={
-              isCreditPurchase && creditCards.length === 0
-                ? 'Nenhum cartão cadastrado — cadastre um em Cartões.'
-                : undefined
-            }
-          />
-
-          {form.type === 'transfer' && (
-            <IconSelect
-              label="Conta de destino"
-              placeholder="Selecione..."
-              value={form.toAccountId}
-              onChange={(v) => setForm({ ...form, toAccountId: v })}
-              options={cashAccounts.map(accountToOption)}
-            />
-          )}
-
-          {canInstall && (
-            <Input
-              type="number"
-              min={1}
-              max={60}
-              label="Parcelas"
-              value={form.installments}
-              onChange={(e) => setForm({ ...form, installments: e.target.value })}
-              hint={installmentPreview ?? 'Compra à vista (1×) ou parcele no cartão.'}
-            />
-          )}
-        </form>
-      </Modal>
+      <TransferModal
+        key={`transfer-${transfer.seq}`}
+        open={transfer.open}
+        editing={transfer.editing}
+        onClose={() => setTransfer((p) => ({ ...p, open: false }))}
+      />
 
       <ConfirmDialog
         open={!!deleting}
-        title="Remover transação"
+        title="Remover lançamento"
         description={`Remover "${deleting?.description}"?`}
         confirmLabel="Remover"
         destructive
